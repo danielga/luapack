@@ -9,7 +9,7 @@ end
 require("hook")
 require("addcs")
 require("crypt")
-local hio_loaded = pcall(require, "hio") ~= false
+require("luaio")
 
 luapack = luapack or {AddCSLuaFile = AddCSLuaFile, FileList = {}, FinishedAdding = false}
 
@@ -42,15 +42,6 @@ function luapack.CanonicalizePath(path, curpath)
 	return table.concat(t, "/")
 end
 
-local function ReadFile(filepath, pathlist)
-	local f = file.Open(filepath, "rb", pathlist)
-	if f then
-		local data = f:Read(f:Size()) or ""
-		f:Close()
-		return data
-	end
-end
-
 function luapack.AddFile(filepath)
 	if luapack.FinishedAdding then
 		print("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
@@ -79,6 +70,15 @@ hook.Add("AddOrUpdateCSLuaFile", "luapack addcsluafile detour", function(path, r
 	return (not reload and luapack.AddFile(path)) and true or nil
 end)
 
+local function ReadFile(filepath, pathlist)
+	local f = file.Open(filepath, "rb", pathlist)
+	if f then
+		local data = f:Read(f:Size()) or ""
+		f:Close()
+		return data
+	end
+end
+
 -- relative to lua folder, gamemodes are relative to lua as well
 function luapack.ParseSendFile(filepath)
 	local send = ReadFile(filepath, "LUA")
@@ -104,6 +104,14 @@ local function StringToHex(str)
 	end
 
 	return table.concat(parts)
+end
+
+local function WriteFile(filepath, str)
+	local f = io.open(filepath, "wb")
+	if f then
+		f:write(str)
+		f:close()
+	end
 end
 
 function luapack.Build()
@@ -159,10 +167,11 @@ function luapack.Build()
 	local currentpath = "luapack/" .. luapack.CurrentHash .. ".dat"
 	local fullcurrentpath = "data/" .. currentpath
 	if not file.Exists(currentpath, "DATA") then
-		if hio_loaded then
-			hIO.Rename("data/" .. luapacktemp, fullcurrentpath)
-			hIO.Write(string.GetPathFromFilename(debug.getinfo(1).short_src) .. "hash.lua", "luapack.CurrentHash = \"" .. luapack.CurrentHash .. "\"")
-		end
+		io.rename("garrysmod/data/" .. luapacktemp, "garrysmod/" .. fullcurrentpath)
+
+		-- hash.lua will be written on the same folder as the other luapack Lua files
+		local hashpath = "garrysmod/" .. string.GetPathFromFilename(debug.getinfo(1, "S").short_src)
+		WriteFile(hashpath .. "hash.lua", "luapack.CurrentHash = \"" .. luapack.CurrentHash .. "\"")
 	else
 		file.Delete(luapacktemp)
 	end
