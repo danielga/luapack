@@ -9,7 +9,7 @@ end
 require("hook")
 require("addcs")
 require("crypt")
-require("luaio")
+require("luaiox")
 
 luapack = luapack or {AddCSLuaFile = AddCSLuaFile, FileList = {}, FinishedAdding = false}
 
