@@ -6,6 +6,10 @@ function IsValid(object)
 	return object and object.IsValid and object:IsValid()
 end
 
+local function dbg(...)
+	Msg"[LP] "print(...) 
+end
+
 require("hook")
 require("addcs")
 require("crypt")
@@ -108,15 +112,22 @@ end
 
 local function WriteFile(filepath, str)
 	local f = io.open(filepath, "wb")
+	dbg("WriteFile",filepath)
 	if f then
 		f:write(str)
 		f:close()
 	end
 end
 
-function luapack.Build()
-	print("[luapack] Starting Lua pack file build!")
+local function rename(from,to)
+	local ok = io.rename(from,to)
+	dbg("rename",from,to,ok and "" or "FAILED")
+	return ok
+end
 
+function luapack.Build()
+	dbg"Building..."
+	
 	local time = SysTime()
 
 	local luapacktemp = "luapack/temp.dat"
@@ -167,12 +178,13 @@ function luapack.Build()
 	local currentpath = "luapack/" .. luapack.CurrentHash .. ".dat"
 	local fullcurrentpath = "data/" .. currentpath
 	if not file.Exists(currentpath, "DATA") then
-		io.rename("garrysmod/data/" .. luapacktemp, "garrysmod/" .. fullcurrentpath)
+		rename("garrysmod/data/" .. luapacktemp, "garrysmod/" .. fullcurrentpath)
 
 		-- hash.lua will be written on the same folder as the other luapack Lua files
 		local hashpath = "garrysmod/" .. string.GetPathFromFilename(debug.getinfo(1, "S").short_src)
 		WriteFile(hashpath .. "hash.lua", "luapack.CurrentHash = \"" .. luapack.CurrentHash .. "\"")
 	else
+		dbg("Deleting obsolete",luapacktemp)
 		file.Delete(luapacktemp)
 	end
 
