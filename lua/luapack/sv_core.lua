@@ -1,5 +1,6 @@
 AddCSLuaFile("cl_core.lua")
 AddCSLuaFile("filesystem.lua")
+AddCSLuaFile("autoloader.lua")
 AddCSLuaFile("hash.lua")
 
 -- for the hook module, no need to include util.lua and all the trash it brings

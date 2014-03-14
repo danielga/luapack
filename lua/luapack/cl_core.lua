@@ -8,6 +8,8 @@ include("filesystem.lua")
 
 luapack.RootDirectory = luapack.NewRootDirectory()
 
+timer.Simple(0, function() include("luapack/autoloader.lua") end)
+
 local red = {r = 255, g = 0, b = 0, a = 255}
 local function ErrorMsg(...)
 	MsgC(red, "[LuaPack] ")
@@ -88,7 +90,7 @@ function luapack.GetContents(filepath)
 	local files = luapack.RootDirectory:Get(filepath)
 	local filedata = files[1]
 	if not filedata then
-		ErrorMsg("File doesn't exist or path canonicalization failed", filepath)
+		--ErrorMsg("File doesn't exist or path canonicalization failed", filepath)
 		return
 	end
 
@@ -111,10 +113,12 @@ function require(module)
 	local modulepath = "includes/modules/" .. module .. ".lua"
 	local contents = luapack.GetContents(modulepath)
 	if contents then
-		DebugMsg("Successfully required module", module)
+		--DebugMsg("Successfully required module", module)
 		RunStringEx(contents, modulepath)
 		return
 	end
+
+	DebugMsg("Couldn't require Lua module, proceeding with normal require", path)
 
 	return luapack.require(module)
 end
@@ -141,17 +145,30 @@ function include(filepath)
 	end
 
 	if contents then
-		DebugMsg("Successfully included file", path)
+		--DebugMsg("Successfully included file", path)
 		RunStringEx(contents, path)
 		return
 	end
+
+	DebugMsg("Couldn't include Lua file, proceeding with normal include", path)
 
 	luapack.include(filepath)
 end
 
 function file.Find(filepath, filelist, sorting)
 	if filelist == "LUA" then
-		return luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath))
+		local files, folders = luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath))
+		local simplefiles, simplefolders = {}, {}
+
+		for i = 1, #files do
+			table.insert(simplefiles, files[i]:GetPath())
+		end
+
+		for i = 1, #folders do
+			table.insert(simplefolders, folders[i]:GetPath())
+		end
+
+		return simplefiles, simplefolders
 	else
 		return luapack.fileFind(filepath, filelist, sorting)
 	end
