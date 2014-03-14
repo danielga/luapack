@@ -1,4 +1,5 @@
 AddCSLuaFile("cl_core.lua")
+AddCSLuaFile("filesystem.lua")
 AddCSLuaFile("hash.lua")
 
 -- for the hook module, no need to include util.lua and all the trash it brings
@@ -6,8 +7,22 @@ function IsValid(object)
 	return object and object.IsValid and object:IsValid()
 end
 
-local function dbg(...)
-	Msg"[LP] "print(...) 
+local red = {r = 255, g = 0, b = 0, a = 255}
+local function ErrorMsg(...)
+	MsgC(red, "[LuaPack] ")
+	print(...)
+end
+
+local green = {r = 0, g = 255, b = 0, a = 255}
+local function LogMsg(...)
+	MsgC(green, "[LuaPack] ")
+	print(...)
+end
+
+local yellow = {r = 255, g = 255, b = 0, a = 255}
+local function DebugMsg(...)
+	MsgC(yellow, "[LuaPack] ")
+	print(...)
 end
 
 require("hook")
@@ -48,7 +63,7 @@ end
 
 function luapack.AddFile(filepath)
 	if luapack.FinishedAdding then
-		print("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
+		ErrorMsg("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
 		return false
 	end
 
@@ -77,9 +92,13 @@ end)
 local function ReadFile(filepath, pathlist)
 	local f = file.Open(filepath, "rb", pathlist)
 	if f then
+		DebugMsg("ReadFile", filepath, pathlist)
+
 		local data = f:Read(f:Size()) or ""
 		f:Close()
 		return data
+	else
+		ErrorMsg("ReadFile failed", filepath, pathlist)
 	end
 end
 
@@ -112,35 +131,50 @@ end
 
 local function WriteFile(filepath, str)
 	local f = io.open(filepath, "wb")
-	dbg("WriteFile",filepath)
 	if f then
+		DebugMsg("WriteFile", filepath)
+
 		f:write(str)
 		f:close()
+	else
+		ErrorMsg("WriteFile failed", filepath)
 	end
 end
 
-local function rename(from,to)
-	local ok = io.rename(from,to)
-	dbg("rename",from,to,ok and "" or "FAILED")
+local function RenameFile(from, to)
+	local ok = io.rename(from, to)
+
+	if ok then
+		DebugMsg("RenameFile", from, to)
+	else
+		ErrorMsg("RenameFile failed", from, to)
+	end
+
 	return ok
 end
 
 function luapack.Build()
-	dbg"Building..."
+	LogMsg("Building pack...")
 	
 	local time = SysTime()
 
 	local luapacktemp = "luapack/temp.dat"
 
 	local f = file.Open(luapacktemp, "wb", "DATA")
-	if not f then error("failed to open '" .. luapacktemp .. "' for writing") end
+	if not f then
+		ErrorMsg("Failed to open '" .. luapacktemp .. "' for writing")
+		return
+	end
 
 	local h = crypt.sha1()
-	if not h then error("failed to create hasher object") end
+	if not h then
+		ErrorMsg("Failed to create SHA-1 hasher object")
+		return
+	end
 
 	local headersize = 0
 	for i = 1, #luapack.FileList do
-		headersize = headersize + 4 + #luapack.FileList[i] + 1
+		headersize = headersize + 4 + 4 + #luapack.FileList[i] + 1
 	end
 
 	f:WriteLong(headersize)
@@ -158,6 +192,7 @@ function luapack.Build()
 		end
 
 		f:WriteLong(offset)
+		f:WriteLong(datalen)
 		f:Write(filepath)
 		f:WriteByte(0)
 
@@ -178,13 +213,13 @@ function luapack.Build()
 	local currentpath = "luapack/" .. luapack.CurrentHash .. ".dat"
 	local fullcurrentpath = "data/" .. currentpath
 	if not file.Exists(currentpath, "DATA") then
-		rename("garrysmod/data/" .. luapacktemp, "garrysmod/" .. fullcurrentpath)
+		RenameFile("garrysmod/data/" .. luapacktemp, "garrysmod/" .. fullcurrentpath)
 
 		-- hash.lua will be written on the same folder as the other luapack Lua files
 		local hashpath = "garrysmod/" .. string.GetPathFromFilename(debug.getinfo(1, "S").short_src)
 		WriteFile(hashpath .. "hash.lua", "luapack.CurrentHash = \"" .. luapack.CurrentHash .. "\"")
 	else
-		dbg("Deleting obsolete",luapacktemp)
+		DebugMsg("Deleting obsolete temporary file")
 		file.Delete(luapacktemp)
 	end
 
@@ -192,7 +227,7 @@ function luapack.Build()
 
 	luapack.FinishedAdding = true
 
-	print("[luapack] Lua pack file building took " .. SysTime() - time .. " seconds!")
+	LogMsg("Pack building took " .. SysTime() - time .. " seconds!")
 end
 
 hook.Add("InitPostEntity", "luapack resource creation", function()

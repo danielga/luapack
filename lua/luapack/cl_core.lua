@@ -4,10 +4,32 @@ include("hash.lua")
 
 luapack.CurrentPackFilePath = "download/data/luapack/" .. luapack.CurrentHash .. ".dat"
 
+include("filesystem.lua")
+
+luapack.RootDirectory = luapack.NewRootDirectory()
+
+local red = {r = 255, g = 0, b = 0, a = 255}
+local function ErrorMsg(...)
+	MsgC(red, "[LuaPack] ")
+	print(...)
+end
+
+local green = {r = 0, g = 255, b = 0, a = 255}
+local function LogMsg(...)
+	MsgC(green, "[LuaPack] ")
+	print(...)
+end
+
+local yellow = {r = 255, g = 255, b = 0, a = 255}
+local function DebugMsg(...)
+	MsgC(yellow, "[LuaPack] ")
+	print(...)
+end
+
 function luapack.CanonicalizePath(path, curpath)
 	curpath = curpath or ""
-	path = path:gsub("\\", "/"):gsub("/+", "/")
-	curpath = curpath:gsub("\\", "/"):gsub("/+", "/")
+	path = path:lower():gsub("\\", "/"):gsub("/+", "/")
+	curpath = curpath:lower():gsub("\\", "/"):gsub("/+", "/")
 
 	local t = {}
 	for str in curpath:gmatch("([^/]+)") do
@@ -32,36 +54,41 @@ end
 function luapack.BreakdownPath(filepath)
 	local tab = {}
 	for part in filepath:gmatch("([^/]+)") do
-		table.insert(tab, part)
+		if #part > 0 then
+			table.insert(tab, part)
+		end
 	end
 
 	return tab
 end
 
 function luapack.BuildFileList()
-	print("[luapack] Starting Lua file list build!")
+	LogMsg("Starting Lua file list build!")
 
 	local time = SysTime()
 
 	local f = file.Open(luapack.CurrentPackFilePath, "rb", "GAME")
-	if not f then error("failed to open '" .. luapack.CurrentPackFilePath .. "' for reading") end
+	if not f then
+		ErrorMsg("Failed to open '" .. luapack.CurrentPackFilePath .. "' for reading")
+		return
+	end
 
 	local header = f:Read(f:ReadLong())
 
 	f:Close()
 
-	local lastoffset = 0
-	for piece in header:gmatch("(....[^%z]+)%z") do
-		local b1, b2, b3, b4 = string.byte(piece, 1, 4)
-		local offset = b4 * 16777216 + b3 * 65536 + b2 * 256 + b1
-		local filepath = piece:sub(5)
+	for offset, size, filepath in header:gmatch("(....)(....)([^%z]+)") do
+		local f = luapack.RootDirectory:AddFile(luapack.BreakdownPath(filepath))
+		if f then
+			local b1, b2, b3, b4 = string.byte(offset, 1, 4)
+			f.Offset = b4 * 16777216 + b3 * 65536 + b2 * 256 + b1
 
-		luapack.FileList[filepath] = {Offset = offset, CompressedSize = offset - lastoffset}
-
-		lastoffset = offset
+			b1, b2, b3, b4 = string.byte(size, 1, 4)
+			f.CompressedSize = b4 * 16777216 + b3 * 65536 + b2 * 256 + b1
+		end
 	end
 
-	print("[luapack] Lua file list building took " .. SysTime() - time .. " seconds!")
+	LogMsg("Lua file list building took " .. SysTime() - time .. " seconds!")
 end
 
 luapack.BuildFileList()
@@ -69,50 +96,33 @@ luapack.BuildFileList()
 function luapack.GetContents(filepath)
 	filepath = luapack.CanonicalizePath(filepath)
 
-	local filedata = luapack.FileList[filepath]
+	local files = luapack.RootDirectory:Get(luapack.BreakdownPath(filepath))
+	local filedata = files[1]
 	if not filedata then
+		ErrorMsg("File doesn't exist or path canonicalization failed", filepath)
 		return
 	end
 
 	local f = file.Open(luapack.CurrentPackFilePath, "rb", "GAME")
 	if not f then
+		ErrorMsg("Failed to open pack file for reading", luapack.CurrentPackFilePath, filepath)
 		return
 	end
 
 	f:Seek(filedata.Offset)
 
-	local data = util.Decompress(f:Read(filedata.CompressedSize) or "")
+	local data = util.Decompress(f:Read(filedata.CompressedSize) or "") or ""
 
 	f:Close()
 
 	return data
 end
 
-local function GetCurrentFolder()
-	local info = debug.getinfo(3, "S")
-	if info.short_src == "includes/util.lua" then
-		info = debug.getinfo(4, "S")
-	end
-
-	return string.GetPathFromFilename(info.short_src)
-end
-
-function include(filepath)
-	local contents = luapack.GetContents(filepath)
-	if contents then
-		print(filepath)
-		RunStringEx(contents, filepath)
-		return
-	end
-
-	luapack.include(filepath)
-end
-
 function require(module)
 	local modulepath = "includes/modules/" .. module .. ".lua"
 	local contents = luapack.GetContents(modulepath)
 	if contents then
-		print(modulepath)
+		DebugMsg("Successfully required module", module)
 		RunStringEx(contents, modulepath)
 		return
 	end
@@ -120,44 +130,39 @@ function require(module)
 	return luapack.require(module)
 end
 
-local function GlobToPattern(glob)
-	local pattern = {"^"}
+local function CleanPath(path)
+	return path:match("lua/(.+)$") or (path:match("^gamemodes/(.+)$") or path)
+end
 
-	for i = 1, #glob do
-		local ch = glob:sub(i, i)
+local function GetPathFromFilename(path)
+	return path:match("^(.*[/\\])[^/\\]-$") or ""
+end
 
-		if ch == "*" then
-			ch = "[^/]*"
-		else
-			ch = ch:find("^%w$") and ch or "%" .. ch
-		end
-
-		table.insert(pattern, ch)
+function include(filepath)
+	local short_src = CleanPath(debug.getinfo(2, "S").short_src)
+	if short_src == "includes/util.lua" then
+		short_src = CleanPath(debug.getinfo(3, "S").short_src)
 	end
 
-	return table.concat(pattern)
+	local path = GetPathFromFilename(short_src) .. filepath
+	local contents = luapack.GetContents(path)
+	if not contents then
+		path = filepath
+		contents = luapack.GetContents(path)
+	end
+
+	if contents then
+		DebugMsg("Successfully included file", path)
+		RunStringEx(contents, path)
+		return
+	end
+
+	luapack.include(filepath)
 end
 
 function file.Find(filepath, filelist, sorting)
 	if filelist == "LUA" then
-		filepath = luapack.CanonicalizePath(filepath)
-
-		local pattern = GlobToPattern(filepath)
-		local files, folders = {}, {}
-
-		for path, data in pairs(luapack.FileList) do
-			path = path:match(pattern)
-			if not path then
-				continue
-			end
-
-			path = path:match("([^/]+)$")
-			if path and not files[path] then
-				files[path] = path
-			end
-		end
-
-		return files, folders
+		return luapack.RootDirectory:Get(luapack.BreakdownPath(luapack.CanonicalizePath(filepath)))
 	else
 		return luapack.fileFind(filepath, filelist, sorting)
 	end
