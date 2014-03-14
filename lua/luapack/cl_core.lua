@@ -1,4 +1,4 @@
-luapack = luapack or {include = include, require = require, fileFind = file.Find, FileList = {}, CurrentHash = nil}
+luapack = luapack or {include = include, CompileFile=CompileFile,require = require, fileFind = file.Find, FileList = {}, CurrentHash = nil}
 
 include("hash.lua")
 
@@ -8,7 +8,6 @@ include("filesystem.lua")
 
 luapack.RootDirectory = luapack.NewRootDirectory()
 
-timer.Simple(0, function() include("luapack/autoloader.lua") end)
 
 local red = {r = 255, g = 0, b = 0, a = 255}
 local function ErrorMsg(...)
@@ -160,6 +159,33 @@ function include(filepath)
 	luapack.include(filepath)
 end
 
+function CompileFile(filepath)
+	local short_src = CleanPath(debug.getinfo(2, "S").short_src)
+	if short_src == "includes/util.lua" then
+		short_src = CleanPath(debug.getinfo(3, "S").short_src)
+	end
+
+	local path = GetPathFromFilename(short_src) .. filepath
+	local contents = luapack.GetContents(path)
+	if not contents then
+		path = filepath
+		contents = luapack.GetContents(path)
+	end
+
+	local f
+	if contents then
+		--DebugMsg("Successfully compiled file", path)
+		f = CompileString(contents, path, false)
+		if isfunction(f) then
+			return f
+		end
+	end
+
+	DebugMsg("Couldn't CompileString Lua file, proceeding with normal include", path)
+
+	return luapack.CompileFile(filepath)
+end
+
 function file.Find(filepath, filelist, sorting)
 	if filelist == "LUA" then
 		local files, folders = luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath))
@@ -178,3 +204,6 @@ function file.Find(filepath, filelist, sorting)
 		return luapack.fileFind(filepath, filelist, sorting)
 	end
 end
+
+include	"includes/real_init.lua"
+include "luapack/autoloader.lua"
