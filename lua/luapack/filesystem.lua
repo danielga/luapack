@@ -9,8 +9,12 @@ function FILE:IsDirectory()
 	return false
 end
 
-function FILE:GetName()
-	return self.__name
+function FILE:IsRootDirectory()
+	return false
+end
+
+function FILE:GetPath()
+	return self.__path
 end
 
 function FILE:GetParent()
@@ -18,14 +22,14 @@ function FILE:GetParent()
 end
 
 function FILE:GetFullPath()
-	local names = {self:GetName()}
+	local paths = {self:GetPath()}
 	local parent = self:GetParent()
-	while parent do
-		table.insert(names, 1, parent:GetName())
+	while parent and not parent:IsRootDirectory() do
+		table.insert(paths, 1, parent:GetPath())
 		parent = parent:GetParent()
 	end
 
-	return table.concat(names, "/")
+	return table.concat(paths, "/")
 end
 
 function FILE:AddFile(name)
@@ -48,70 +52,60 @@ function DIRECTORY:IsDirectory()
 	return true
 end
 
-function DIRECTORY:GetName()
-	return self.__name
+function DIRECTORY:IsRootDirectory()
+	return self:GetParent() == nil
 end
 
-function DIRECTORY:GetParent()
-	return self.__parent
-end
+DIRECTORY.GetPath = FILE.GetPath
+DIRECTORY.GetParent = FILE.GetParent
+DIRECTORY.GetFullPath = FILE.GetFullPath
 
-function DIRECTORY:GetFullPath()
-	local names = {self:GetName()}
-	local parent = self:GetParent()
-	while parent do
-		table.insert(names, 1, parent:GetName())
-		parent = parent:GetParent()
+local function GetPathParts(path)
+	local curdir, rest = path:match("^([^/]+)/(.+)$")
+	if curdir and rest then
+		return false, curdir, rest
+	else
+		return true, path
 	end
-
-	return table.concat(names, "/")
 end
 
-function DIRECTORY:AddFile(name)
-	if istable(name) then
-		local strname = table.remove(name, 1)
-		if #name == 0 then
-			return self:AddFile(strname)
+function DIRECTORY:AddFile(path)
+	local single, cur, rest = GetPathParts(path)
+	if single then
+		local files, dirs = self:Get(cur, false)
+		if not files[1] and not dirs[1] then
+			local file = setmetatable({__path = cur, __parent = self}, FILE)
+			table.insert(self:GetList(), file)
+			return file
 		end
-
-		local _, dirs = self:Get(strname)
+	else
+		local _, dirs = self:Get(cur, false)
 		local dir = dirs[1]
 		if not dir then
-			dir = self:AddDirectory(strname)
+			dir = self:AddDirectory(cur)
 		end
 
-		return dir:AddFile(name)
-	end
-
-	local files, dirs = self:Get(name)
-	if not files[1] and not dirs[1] then
-		local file = setmetatable({__name = name, __parent = self}, FILE)
-		table.insert(self.__list, file)
-		return file
+		return dir:AddFile(rest)
 	end
 end
 
-function DIRECTORY:AddDirectory(name)
-	if istable(name) then
-		local strname = table.remove(name, 1)
-		if #name == 0 then
-			return self:AddDirectory(strname)
+function DIRECTORY:AddDirectory(path)
+	local single, cur, rest = GetPathParts(path)
+	if single then
+		local files, dirs = self:Get(cur, false)
+		if not files[1] and not dirs[1] then
+			local dir = setmetatable({__path = cur, __parent = self, __list = {}}, DIRECTORY)
+			table.insert(self:GetList(), dir)
+			return dir
 		end
-
-		local _, dirs = self:Get(strname)
+	else
+		local _, dirs = self:Get(cur, false)
 		local dir = dirs[1]
 		if not dir then
-			dir = self:AddDirectory(strname)
+			dir = self:AddDirectory(cur)
 		end
 
-		return dir:AddDirectory(name)
-	end
-
-	local files, dirs = self:Get(name)
-	if not files[1] and not dirs[1] then
-		local dir = setmetatable({__name = name, __parent = self, __list = {}}, DIRECTORY)
-		table.insert(self.__list, dir)
-		return dir
+		return dir:AddDirectory(rest)
 	end
 end
 
@@ -134,29 +128,21 @@ local function GlobToPattern(glob)
 	return table.concat(pattern)
 end
 
-function DIRECTORY:Get(name)
-	local strname = name
-	local namecount = 0
-	if istable(name) then
-		strname = GlobToPattern(table.remove(name, 1))
-		namecount = #name
-	else
-		strname = GlobToPattern(strname)
+function DIRECTORY:Get(path, pattern, files, dirs)
+	pattern = pattern or true
+	files = files or {}
+	dirs = dirs or {}
+
+	local single, cur, rest = GetPathParts(path)
+	if pattern then
+		cur = GlobToPattern(cur)
 	end
 
-	local files, dirs = {}, {}
 	for elem in self:GetIterator() do
-		if elem:GetName():find(strname) then
-			if namecount > 0 then
+		if (pattern and elem:GetPath():find(cur)) or elem:GetPath() == cur then
+			if not single then
 				if elem:IsDirectory() then
-					local fs, ds = elem:Get(name)
-					for i = 1, #fs do
-						table.insert(files, fs[i])
-					end
-
-					for i = 1, #ds do
-						table.insert(dirs, ds[i])
-					end
+					elem:Get(rest, pattern, files, dirs)
 				end
 			else
 				table.insert(elem:IsFile() and files or dirs, elem)
@@ -174,7 +160,7 @@ end
 
 function DIRECTORY:GetIterator()
 	local i = 0
-	local list = self.__list
+	local list = self:GetList()
 	local n = #list
 	return function()
 		i = i + 1
@@ -183,5 +169,5 @@ function DIRECTORY:GetIterator()
 end
 
 function luapack.NewRootDirectory()
-	return setmetatable({__name = "", __list = {}}, DIRECTORY)
+	return setmetatable({__list = {}}, DIRECTORY)
 end

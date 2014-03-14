@@ -51,17 +51,6 @@ function luapack.CanonicalizePath(path, curpath)
 	return table.concat(t, "/")
 end
 
-function luapack.BreakdownPath(filepath)
-	local tab = {}
-	for part in filepath:gmatch("([^/]+)") do
-		if #part > 0 then
-			table.insert(tab, part)
-		end
-	end
-
-	return tab
-end
-
 function luapack.BuildFileList()
 	LogMsg("Starting Lua file list build!")
 
@@ -78,7 +67,7 @@ function luapack.BuildFileList()
 	f:Close()
 
 	for offset, size, filepath in header:gmatch("(....)(....)([^%z]+)") do
-		local f = luapack.RootDirectory:AddFile(luapack.BreakdownPath(filepath))
+		local f = luapack.RootDirectory:AddFile(filepath)
 		if f then
 			local b1, b2, b3, b4 = string.byte(offset, 1, 4)
 			f.Offset = b4 * 16777216 + b3 * 65536 + b2 * 256 + b1
@@ -96,7 +85,7 @@ luapack.BuildFileList()
 function luapack.GetContents(filepath)
 	filepath = luapack.CanonicalizePath(filepath)
 
-	local files = luapack.RootDirectory:Get(luapack.BreakdownPath(filepath))
+	local files = luapack.RootDirectory:Get(filepath)
 	local filedata = files[1]
 	if not filedata then
 		ErrorMsg("File doesn't exist or path canonicalization failed", filepath)
@@ -162,7 +151,7 @@ end
 
 function file.Find(filepath, filelist, sorting)
 	if filelist == "LUA" then
-		return luapack.RootDirectory:Get(luapack.BreakdownPath(luapack.CanonicalizePath(filepath)))
+		return luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath))
 	else
 		return luapack.fileFind(filepath, filelist, sorting)
 	end
