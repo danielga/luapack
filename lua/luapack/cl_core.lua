@@ -110,6 +110,11 @@ function luapack.GetContents(filepath)
 end
 
 function require(module)
+	-- this comes from C++ by default
+	if module == "timer" then
+		return luapack.require(module)
+	end
+	
 	local modulepath = "includes/modules/" .. module .. ".lua"
 	local contents = luapack.GetContents(modulepath)
 	if contents then
