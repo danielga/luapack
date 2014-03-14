@@ -8,7 +8,6 @@ include("filesystem.lua")
 
 luapack.RootDirectory = luapack.NewRootDirectory()
 
-
 local red = {r = 255, g = 0, b = 0, a = 255}
 local function ErrorMsg(...)
 	MsgC(red, "[LuaPack] ")
@@ -160,28 +159,22 @@ function include(filepath)
 end
 
 function CompileFile(filepath)
-	local short_src = CleanPath(debug.getinfo(2, "S").short_src)
-	if short_src == "includes/util.lua" then
-		short_src = CleanPath(debug.getinfo(3, "S").short_src)
-	end
-
-	local path = GetPathFromFilename(short_src) .. filepath
+	local path = GetPathFromFilename(CleanPath(debug.getinfo(2, "S").short_src)) .. filepath
 	local contents = luapack.GetContents(path)
 	if not contents then
 		path = filepath
 		contents = luapack.GetContents(path)
 	end
 
-	local f
 	if contents then
 		--DebugMsg("Successfully compiled file", path)
-		f = CompileString(contents, path, false)
+		local f = CompileString(contents, path, false)
 		if isfunction(f) then
 			return f
 		end
 	end
 
-	DebugMsg("Couldn't CompileString Lua file, proceeding with normal include", path)
+	DebugMsg("Couldn't CompileFile Lua file, proceeding with normal CompileFile", path)
 
 	return luapack.CompileFile(filepath)
 end
@@ -205,5 +198,5 @@ function file.Find(filepath, filelist, sorting)
 	end
 end
 
-include	"includes/real_init.lua"
-include "luapack/autoloader.lua"
+include("includes/real_init.lua")
+include("luapack/autoloader.lua")
