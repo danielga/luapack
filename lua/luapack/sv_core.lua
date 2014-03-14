@@ -93,7 +93,7 @@ end)
 local function ReadFile(filepath, pathlist)
 	local f = file.Open(filepath, "rb", pathlist)
 	if f then
-		DebugMsg("ReadFile", filepath, pathlist)
+		--DebugMsg("ReadFile", filepath, pathlist)
 
 		local data = f:Read(f:Size()) or ""
 		f:Close()
