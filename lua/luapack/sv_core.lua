@@ -2,6 +2,7 @@ AddCSLuaFile("cl_core.lua")
 AddCSLuaFile("filesystem.lua")
 AddCSLuaFile("autoloader.lua")
 AddCSLuaFile("hash.lua")
+AddCSLuaFile("includes/real_init.lua")
 
 -- for the hook module, no need to include util.lua and all the trash it brings
 function IsValid(object)
@@ -236,5 +237,4 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 	luapack.Build()
 end)
 
-AddCSLuaFile("includes/real_init.lua")
 include("includes/real_init.lua")

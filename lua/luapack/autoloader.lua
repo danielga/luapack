@@ -1,19 +1,19 @@
 local gamemode_Register = gamemode.Register
 local tt = {}
-gamemode.Register = function(a, b, ...)
-	if not tt[b] then
-		tt[b] = true
-		print("REGGAMEMODE", b)
+gamemode.Register = function(gm, name, base)
+	if not tt[name] then
+		tt[name] = true
+		print("gamemode.Register>", name)
 	end
 
-	return gamemode_Register(a, b, ...)
+	return gamemode_Register(gm, name, base)
 end
 
-hook.Add("CreateTeams", "asd", function()
+hook.Add("CreateTeams", "luapack testing", function()
 	print("CreateTeams>", gmod.GetGamemode(), GAMEMODE, GM, engine.ActiveGamemode())
 end)
 
-hook.Add("PreGamemodeLoaded", "asd", function()
+hook.Add("PreGamemodeLoaded", "luapack testing", function()
 	print("PreGamemodeLoaded>", gmod.GetGamemode(), GAMEMODE, GM, engine.ActiveGamemode())
 end)
 
@@ -45,12 +45,42 @@ local function LoadBases()
 	ENT = {
 		Base = "base_entity",
 		Type = "anim",
+		ClassName = "base_entity"
+	}
+
+	include("base/entities/entities/base_entity/cl_init.lua")
+
+	scripted_ents.Register(ENT, "base_entity")
+
+	ENT = {
+		Base = "base_entity",
+		Type = "anim",
 		ClassName = "base_anim"
 	}
 
 	include("base/entities/entities/base_anim.lua")
 
 	scripted_ents.Register(ENT, "base_anim")
+--[[
+	ENT = {
+		Base = "base_entity",
+		Type = "point",
+		ClassName = "base_point"
+	}
+
+	include("base/entities/entities/base_point.lua")
+
+	scripted_ents.Register(ENT, "base_point")
+]]
+	ENT = {
+		Base = "base_entity",
+		Type = "anim",
+		ClassName = "base_nextbot"
+	}
+
+	include("base/entities/entities/base_nextbot/shared.lua")
+
+	scripted_ents.Register(ENT, "base_nextbot")
 end
 
 local function LoadEntities(path)
