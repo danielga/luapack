@@ -1,6 +1,3 @@
-include "init_pre.lua" AddCSLuaFile "init_pre.lua"
---AddCSLuaFile()
-
 
 --[[---------------------------------------------------------
 	Non-Module includes
@@ -18,17 +15,6 @@ require ( "baseclass" )
 require ( "concommand" )		-- Console Commands
 require ( "saverestore" )		-- Save/Restore
 require ( "gamemode" )			-- Gamemode manager
-
-
-local gamemode_Register=gamemode.Register
-local tt={}
-gamemode.Register=function(a,b,...)
-	if not tt[b] then
-		tt[b] = true
-		print("REGGAMEMODE",b)
-	end
-	return gamemode_Register(a,b,...)
-end
 require ( "weapons" )			-- SWEP manager
 require ( "hook" )				-- Gamemode hooks
 require ( "timer" )				-- Timer manager
@@ -135,11 +121,4 @@ if ( CLIENT ) then
 	require ( "search" )
 
 end
-
-
-
-
-
-
-AddCSLuaFile "init_post.lua" include "init_post.lua"
 

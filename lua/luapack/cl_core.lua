@@ -1,4 +1,4 @@
-luapack = luapack or {include = include, CompileFile=CompileFile,require = require, fileFind = file.Find, FileList = {}, CurrentHash = nil}
+luapack = luapack or {include = include, CompileFile = CompileFile,require = require, fileFind = file.Find, FileList = {}, CurrentHash = nil}
 
 include("hash.lua")
 
@@ -58,7 +58,7 @@ function luapack.BuildFileList()
 
 	local f = file.Open(luapack.CurrentPackFilePath, "rb", "GAME")
 	if not f then
-		ErrorMsg("Failed to open '" .. luapack.CurrentPackFilePath .. "' for reading")
+		ErrorMsg("Failed to open current pack file for reading", luapack.CurrentPackFilePath)
 		return
 	end
 

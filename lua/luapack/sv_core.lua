@@ -235,3 +235,6 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 	hook.Remove("InitPostEntity", "luapack resource creation")
 	luapack.Build()
 end)
+
+AddCSLuaFile("includes/real_init.lua")
+include("includes/real_init.lua")

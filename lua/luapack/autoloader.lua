@@ -1,3 +1,22 @@
+local gamemode_Register = gamemode.Register
+local tt = {}
+gamemode.Register = function(a, b, ...)
+	if not tt[b] then
+		tt[b] = true
+		print("REGGAMEMODE", b)
+	end
+
+	return gamemode_Register(a, b, ...)
+end
+
+hook.Add("CreateTeams", "asd", function()
+	print("CreateTeams>", gmod.GetGamemode(), GAMEMODE, GM, engine.ActiveGamemode())
+end)
+
+hook.Add("PreGamemodeLoaded", "asd", function()
+	print("PreGamemodeLoaded>", gmod.GetGamemode(), GAMEMODE, GM, engine.ActiveGamemode())
+end)
+
 local function RemoveExtension(filename)
 	return filename:match("([^%.]+).lua")
 end
