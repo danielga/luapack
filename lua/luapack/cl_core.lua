@@ -121,7 +121,7 @@ function require(module)
 		return
 	end
 
-	DebugMsg("Couldn't require Lua module, proceeding with normal require", path)
+	DebugMsg("Couldn't require Lua module, proceeding with normal require", module)
 
 	return luapack.require(module)
 end
