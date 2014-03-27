@@ -1,4 +1,13 @@
-luapack = luapack or {include = include, CompileFile = CompileFile,require = require, fileFind = file.Find, FileList = {}, CurrentHash = nil}
+luapack = luapack or {
+	include = include,
+	CompileFile = CompileFile,
+	require = require,
+	fileFind = file.Find,
+	fileExists = file.Exists,
+	fileIsDir = file.IsDir,
+	FileList = {},
+	CurrentHash = nil
+}
 
 include("hash.lua")
 
@@ -195,6 +204,24 @@ function file.Find(filepath, filelist, sorting)
 		return simplefiles, simplefolders
 	else
 		return luapack.fileFind(filepath, filelist, sorting)
+	end
+end
+
+function file.Exists(filepath, filelist)
+	if filelist == "LUA" then
+		local files, folders = luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath, false))
+		return files[1] ~= nil or folders[1] ~= nil
+	else
+		return luapack.fileExists(filepath, filelist)
+	end
+end
+
+function file.IsDir(filepath, filelist)
+	if filelist == "LUA" then
+		local _, folders = luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath, false))
+		return folders[1] ~= nil
+	else
+		return luapack.fileIsDir(filepath, filelist)
 	end
 end
 
