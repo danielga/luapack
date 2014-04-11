@@ -1,7 +1,6 @@
 AddCSLuaFile("cl_core.lua")
 AddCSLuaFile("filesystem.lua")
 AddCSLuaFile("autoloader.lua")
-AddCSLuaFile("hash.lua")
 AddCSLuaFile("includes/real_init.lua")
 
 -- for the hook module, no need to include util.lua and all the trash it brings
@@ -32,10 +31,15 @@ require("addcs")
 require("crypt")
 require("luaiox")
 
-luapack = luapack or {AddCSLuaFile = AddCSLuaFile, FileList = {}, FinishedAdding = false}
+luapack = luapack or {Bypass = false, FileList = {}, FinishedAdding = false}
 
 if not file.IsDir("luapack", "DATA") then
 	file.CreateDir("luapack")
+end
+
+function luapack.AddCSLuaFile(path)
+	luapack.Bypass = true
+	AddCSLuaFile(path)
 end
 
 function luapack.CanonicalizePath(path, curpath)
@@ -63,21 +67,17 @@ function luapack.CanonicalizePath(path, curpath)
 	return table.concat(t, "/")
 end
 
+local function CleanPath(path)
+	return path:match("lua/(.+)$") or (path:match("^gamemodes/(.+)$") or path)
+end
+
 function luapack.AddFile(filepath)
 	if luapack.FinishedAdding then
 		ErrorMsg("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
 		return false
 	end
 
-	filepath = luapack.CanonicalizePath(filepath)
-
-	local initial = filepath:match("^([^/]+)/")
-	filepath = filepath:sub(#initial + 2)
-	if initial == "addons" then
-		local _, fin = filepath:find("/lua/")
-		filepath = filepath:sub(fin + 1)
-	end
-
+	filepath = CleanPath(luapack.CanonicalizePath(filepath))
 	if not file.Exists(filepath, "LUA") then
 		return false
 	end
@@ -88,14 +88,17 @@ function luapack.AddFile(filepath)
 end
 
 hook.Add("AddOrUpdateCSLuaFile", "luapack addcsluafile detour", function(path, reload)
+	if luapack.Bypass then
+		luapack.Bypass = false
+		return
+	end
+
 	return (not reload and luapack.AddFile(path)) and true or nil
 end)
 
 local function ReadFile(filepath, pathlist)
 	local f = file.Open(filepath, "rb", pathlist)
 	if f then
-		--DebugMsg("ReadFile", filepath, pathlist)
-
 		local data = f:Read(f:Size()) or ""
 		f:Close()
 		return data
@@ -226,6 +229,8 @@ function luapack.Build()
 	end
 
 	resource.AddFile(fullcurrentpath)
+
+	luapack.AddCSLuaFile("luapack/hash.lua")
 
 	luapack.FinishedAdding = true
 

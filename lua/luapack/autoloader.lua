@@ -2,7 +2,7 @@ local function RemoveExtension(filename)
 	return filename:match("([^%.]+).lua")
 end
 
-local function LoadAutorun()
+function luapack.LoadAutorun()
 	local files = file.Find("autorun/*.lua", "LUA")
 	for i = 1, #files do
 		include("autorun/" .. files[i])
@@ -14,7 +14,7 @@ local function LoadAutorun()
 	end
 end
 
-local function LoadVGUI()
+function luapack.LoadVGUI()
 	include("derma/init.lua")
 	local files = file.Find("vgui/*.lua", "LUA")
 	for i = 1, #files do
@@ -22,7 +22,7 @@ local function LoadVGUI()
 	end
 end
 
-local function LoadEntity(path, name)
+function luapack.LoadEntity(path, name)
 	if scripted_ents.GetStored(name) then
 		return
 	end
@@ -33,35 +33,35 @@ local function LoadEntity(path, name)
 		ClassName = name
 	}
 
-	if file.IsDir(path .. name, "LUA") then
-		if not file.Exists(path .. name .. "/cl_init.lua", "LUA") then
-			include(path .. name .. "/shared.lua")
+	if file.IsDir(path .. "/" .. name, "LUA") then
+		if not file.Exists(path .. "/" .. name .. "/cl_init.lua", "LUA") then
+			include(path .. "/" .. name .. "/shared.lua")
 		else
-			include(path .. name .. "/cl_init.lua")
+			include(path .. "/" .. name .. "/cl_init.lua")
 		end
 	else
-		include(path .. name .. ".lua")
+		include(path .. "/" .. name .. ".lua")
 	end
 
 	if ENT.Base ~= name then
-		LoadEntity(path, ENT.Base)
+		luapack.LoadEntity(path, ENT.Base)
 	end
 
 	scripted_ents.Register(ENT, name)
 end
 
-local function LoadEntities(path)
-	local files, folders = file.Find(path .. "*", "LUA")
+function luapack.LoadEntities(path)
+	local files, folders = file.Find(path .. "/*", "LUA")
 	for i = 1, #files do
-		LoadEntity(path, RemoveExtension(files[i]))
+		luapack.LoadEntity(path, RemoveExtension(files[i]))
 	end
 
 	for i = 1, #folders do
-		LoadEntity(path, folders[i])
+		luapack.LoadEntity(path, folders[i])
 	end
 end
 
-local function LoadWeapon(path, name)
+function luapack.LoadWeapon(path, name)
 	if weapons.GetStored(name) then
 		return
 	end
@@ -73,90 +73,96 @@ local function LoadWeapon(path, name)
 		ClassName = name
 	}
 
-	if file.IsDir(path .. name, "LUA") then
-		SWEP.Folder = path .. name
-		if not file.Exists(path .. name .. "/cl_init.lua", "LUA") then
-			include(path .. name .. "/shared.lua")
+	if file.IsDir(path .. "/" .. name, "LUA") then
+		SWEP.Folder = path .. "/" .. name
+		if not file.Exists(path .. "/" .. name .. "/cl_init.lua", "LUA") then
+			include(path .. "/" .. name .. "/shared.lua")
 		else
-			include(path .. name .. "/cl_init.lua")
+			include(path .. "/" .. name .. "/cl_init.lua")
 		end
 	else
 		SWEP.Folder = path
-		include(path .. name .. ".lua")
+		include(path .. "/" .. name .. ".lua")
 	end
 
 	if SWEP.Base ~= name and not scripted_ents.GetStored(SWEP.Base) then
-		LoadWeapon(path, SWEP.Base)
+		luapack.LoadWeapon(path, SWEP.Base)
 	end
 
 	weapons.Register(SWEP, name)
 end
 
-local function LoadWeapons(path)
-	local files, folders = file.Find(path .. "*", "LUA")
+function luapack.LoadWeapons(path)
+	local files, folders = file.Find(path .. "/*", "LUA")
 	for i = 1, #files do
-		LoadWeapon(path, RemoveExtension(files[i]))
+		luapack.LoadWeapon(path, RemoveExtension(files[i]))
 	end
 
 	for i = 1, #folders do
-		LoadWeapon(path, folders[i])
+		luapack.LoadWeapon(path, folders[i])
 	end
 end
 
-local function LoadEffect(path, name)
+function luapack.LoadEffect(path, name)
 	if effects.Create(name) then
 		return
 	end
 
 	EFFECT = {}
 
-	if file.IsDir(path .. name, "LUA") then
-		include(path .. name .. "/init.lua")
+	if file.IsDir(path .. "/" .. name, "LUA") then
+		include(path .. "/" .. name .. "/init.lua")
 	else
-		include(path .. name .. ".lua")
+		include(path .. "/" .. name .. ".lua")
 	end
 
 	effects.Register(EFFECT, name)
 end
 
-local function LoadEffects(path)
-	local files, folders = file.Find(path .. "*", "LUA")
+function luapack.LoadEffects(path)
+	local files, folders = file.Find(path .. "/*", "LUA")
 	for i = 1, #files do
-		LoadEffect(path, RemoveExtension(files[i]))
+		luapack.LoadEffect(path, RemoveExtension(files[i]))
 	end
 
 	for i = 1, #folders do
-		LoadEffect(path, folders[i])
+		luapack.LoadEffect(path, folders[i])
 	end
 end
 
-LoadVGUI()
-LoadAutorun()
+function luapack.LoadGamemode(name, tab)
+	luapack.LoadEntities(name .. "/entities/entities")
+	luapack.LoadWeapons(name .. "/entities/weapons")
+	luapack.LoadEffects(name .. "/entities/effects")
 
-local gamemode_Register = gamemode.Register
+	local gm = GM
+	GM = tab
+	include(name .. "/gamemode/cl_init.lua")
+	GM = gm
+end
+
+luapack.LoadVGUI()
+luapack.LoadAutorun()
+
+luapack.gamemodeRegister = luapack.gamemodeRegister or gamemode.Register
+
 local tt = {}
 gamemode.Register = function(gm, name, base)
 	if not tt[name] then
 		tt[name] = true
 
-		LoadEntities(name .. "/entities/entities/")
-		LoadWeapons(name .. "/entities/weapons/")
-		LoadEffects(name .. "/entities/effects/")
+		luapack.LoadGamemode(name, gm)
 
 		print("gamemode.Register>", name)
 	end
 
-	return gamemode_Register(gm, name, base)
+	return luapack.gamemodeRegister(gm, name, base)
 end
 
-hook.Add("CreateTeams", "luapack testing", function()
-	print("CreateTeams>", gmod.GetGamemode(), GAMEMODE, GM, engine.ActiveGamemode())
-end)
+hook.Add("PostGamemodeLoaded", "luapack testing", function()
+	luapack.LoadEntities("entities")
+	luapack.LoadWeapons("weapons")
+	luapack.LoadEffects("effects")
 
-hook.Add("PreGamemodeLoaded", "luapack testing", function()
-	LoadEntities("entities/")
-	LoadWeapons("weapons/")
-	LoadEffects("effects/")
-
-	print("PreGamemodeLoaded>", gmod.GetGamemode(), GAMEMODE, GM, engine.ActiveGamemode())
+	print("PostGamemodeLoaded>", engine.ActiveGamemode())
 end)

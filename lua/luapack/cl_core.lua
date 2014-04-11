@@ -9,11 +9,11 @@ luapack = luapack or {
 	CurrentHash = nil
 }
 
-include("hash.lua")
+luapack.include("hash.lua")
 
 luapack.CurrentPackFilePath = "download/data/luapack/" .. luapack.CurrentHash .. ".dat"
 
-include("filesystem.lua")
+luapack.include("filesystem.lua")
 
 luapack.RootDirectory = luapack.NewRootDirectory()
 
@@ -97,7 +97,6 @@ function luapack.GetContents(filepath)
 	local files = luapack.RootDirectory:Get(filepath)
 	local filedata = files[1]
 	if not filedata then
-		--ErrorMsg("File doesn't exist or path canonicalization failed", filepath)
 		return
 	end
 
@@ -117,15 +116,9 @@ function luapack.GetContents(filepath)
 end
 
 function require(module)
-	-- this comes from C++ by default
-	if module == "timer" then
-		return luapack.require(module)
-	end
-	
 	local modulepath = "includes/modules/" .. module .. ".lua"
 	local contents = luapack.GetContents(modulepath)
 	if contents then
-		--DebugMsg("Successfully required module", module)
 		RunStringEx(contents, modulepath)
 		return
 	end
@@ -157,7 +150,6 @@ function include(filepath)
 	end
 
 	if contents then
-		--DebugMsg("Successfully included file", path)
 		RunStringEx(contents, path)
 		return
 	end
@@ -176,7 +168,6 @@ function CompileFile(filepath)
 	end
 
 	if contents then
-		--DebugMsg("Successfully compiled file", path)
 		local f = CompileString(contents, path, false)
 		if isfunction(f) then
 			return f
@@ -225,5 +216,5 @@ function file.IsDir(filepath, filelist)
 	end
 end
 
-include("includes/real_init.lua")
-include("luapack/autoloader.lua")
+luapack.include("includes/real_init.lua")
+luapack.include("autoloader.lua")
