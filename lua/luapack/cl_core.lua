@@ -73,7 +73,7 @@ function luapack.BuildFileList()
 			f.Offset = b4 * 16777216 + b3 * 65536 + b2 * 256 + b1
 
 			b1, b2, b3, b4 = string.byte(size, 1, 4)
-			f.CompressedSize = b4 * 16777216 + b3 * 65536 + b2 * 256 + b1
+			f.Size = b4 * 16777216 + b3 * 65536 + b2 * 256 + b1
 		end
 	end
 
@@ -97,7 +97,7 @@ function luapack.GetContents(filepath)
 
 	f:Seek(filedata.Offset)
 
-	local data = util.Decompress(f:Read(filedata.CompressedSize) or "") or ""
+	local data = f:Read(filedata.Size)
 
 	f:Close()
 
