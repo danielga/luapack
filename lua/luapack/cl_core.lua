@@ -104,40 +104,20 @@ function luapack.GetContents(filepath)
 	return data
 end
 
-function require(module)
-	local modulepath = "includes/modules/" .. module .. ".lua"
-	local contents = luapack.GetContents(modulepath)
-	if contents then
-		RunStringEx(contents, modulepath)
-		return
-	end
-
-	luapack.DebugMsg("Couldn't require Lua module from luapack, proceeding with normal require", module)
-	return luapack.require(module)
-end
-
-local function GetPathFromFilename(path)
-	return path:match("^(.*[/\\])[^/\\]-$") or ""
-end
-
 local function GetPathFromStack(filepath)
 	local i = 3
 	local dbg = debug.getinfo(i, "S")
 	while dbg do
-		i = i + 1
-
 		local path = dbg.short_src:match("^(.*[/\\])[^/\\]-$")
-		if not path then
-			dbg = debug.getinfo(i, "S")
-			continue
+		if path then
+			path = luapack.CanonicalizePath(path .. filepath)
+			local files = luapack.RootDirectory:Get(path, false)
+			if files[1] ~= nil then
+				return path
+			end
 		end
 
-		path = luapack.CanonicalizePath(path .. filepath)
-		local files = luapack.RootDirectory:Get(path, false)
-		if files[1] ~= nil then
-			return path
-		end
-
+		i = i + 1
 		dbg = debug.getinfo(i, "S")
 	end
 
@@ -147,30 +127,81 @@ local function GetPathFromStack(filepath)
 	end
 end
 
+local totaltime = 0
+
+local function AddTime(time)
+	totaltime = totaltime + time
+end
+
+function luapack.GetTimeSpentLoading()
+	return totaltime
+end
+
+function require(module)
+	local time = SysTime()
+
+	local modulepath = "includes/modules/" .. module .. ".lua"
+	local contents = luapack.GetContents(modulepath)
+	if contents then
+		local ret = RunStringEx(contents, modulepath)
+
+		AddTime(SysTime() - time)
+
+		return ret
+	end
+
+	luapack.DebugMsg("Couldn't require Lua module from luapack, proceeding with normal require", module)
+	local ret = luapack.require(module)
+	
+	AddTime(SysTime() - time)
+
+	return ret
+end
+
 function include(filepath)
+	local time = SysTime()
+
 	local path = GetPathFromStack(filepath)
 	if path then
 		local contents = luapack.GetContents(path)
 		if contents then
-			return RunStringEx(contents, path)
+			local ret = RunStringEx(contents, path)
+
+			AddTime(SysTime() - time)
+
+			return ret
 		end
 	end
 
 	luapack.DebugMsg("Couldn't include Lua file from luapack, proceeding with normal include", filepath)
-	return luapack.include(filepath)
+	local ret = luapack.include(filepath)
+
+	AddTime(SysTime() - time)
+
+	return ret
 end
 
 function CompileFile(filepath)
+	local time = SysTime()
+
 	local path = GetPathFromStack(filepath)
 	if path then
 		local contents = luapack.GetContents(path)
 		if contents then
-			return CompileString(contents, path, false)
+			local ret = CompileString(contents, path, false)
+
+			AddTime(SysTime() - time)
+
+			return ret
 		end
 	end
 
 	luapack.DebugMsg("Couldn't CompileFile Lua file from luapack, proceeding with normal CompileFile", filepath)
-	return luapack.CompileFile(filepath)
+	local ret = luapack.CompileFile(filepath)
+
+	AddTime(SysTime() - time)
+
+	return ret
 end
 
 function file.Find(filepath, filelist, sorting)
