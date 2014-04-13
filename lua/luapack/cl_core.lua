@@ -35,20 +35,10 @@ function luapack.DebugMsg(...)
 	print(...)
 end
 
-function luapack.CanonicalizePath(path, curpath)
-	curpath = curpath or ""
+function luapack.CanonicalizePath(path)
 	path = path:lower():gsub("\\", "/"):gsub("/+", "/")
-	curpath = curpath:lower():gsub("\\", "/"):gsub("/+", "/")
 
 	local t = {}
-	for str in curpath:gmatch("([^/]+)") do
-		if str == ".." then
-			table.remove(t)
-		elseif str ~= "." and str ~= "" then
-			table.insert(t, str)
-		end
-	end
-
 	for str in path:gmatch("([^/]+)") do
 		if str == ".." then
 			table.remove(t)
@@ -57,7 +47,8 @@ function luapack.CanonicalizePath(path, curpath)
 		end
 	end
 
-	return table.concat(t, "/")
+	path = table.concat(t, "/")
+	return path:match("lua/(.+)$") or (path:match("^gamemodes/(.+)$") or path)
 end
 
 function luapack.BuildFileList()
@@ -92,8 +83,6 @@ end
 luapack.BuildFileList()
 
 function luapack.GetContents(filepath)
-	filepath = luapack.CanonicalizePath(filepath)
-
 	local files = luapack.RootDirectory:Get(filepath)
 	local filedata = files[1]
 	if not filedata then
@@ -102,7 +91,7 @@ function luapack.GetContents(filepath)
 
 	local f = file.Open(luapack.CurrentPackFilePath, "rb", "GAME")
 	if not f then
-		luapack.ErrorMsg("Failed to open pack file for reading", luapack.CurrentPackFilePath, filepath)
+		luapack.ErrorMsg("Failed to open pack file for reading", luapack.CurrentPackFilePath)
 		return
 	end
 
@@ -123,12 +112,8 @@ function require(module)
 		return
 	end
 
-	luapack.DebugMsg("Couldn't require Lua module, proceeding with normal require", module)
+	luapack.DebugMsg("Couldn't require Lua module from luapack, proceeding with normal require", module)
 	return luapack.require(module)
-end
-
-local function CleanPath(path)
-	return path:match("lua/(.+)$") or (path:match("^gamemodes/(.+)$") or path)
 end
 
 local function GetPathFromFilename(path)
@@ -139,13 +124,26 @@ local function GetPathFromStack(filepath)
 	local i = 3
 	local dbg = debug.getinfo(i, "S")
 	while dbg do
-		local path = GetPathFromFilename(dbg.short_src) .. filepath
-		if file.Exists(path, "LUA") then
+		i = i + 1
+
+		local path = dbg.short_src:match("^(.*[/\\])[^/\\]-$")
+		if not path then
+			dbg = debug.getinfo(i, "S")
+			continue
+		end
+
+		path = luapack.CanonicalizePath(path .. filepath)
+		local files = luapack.RootDirectory:Get(path, false)
+		if files[1] ~= nil then
 			return path
 		end
 
-		i = i + 1
 		dbg = debug.getinfo(i, "S")
+	end
+
+	local files = luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath), false)
+	if files[1] ~= nil then
+		return filepath
 	end
 end
 
@@ -171,7 +169,7 @@ function CompileFile(filepath)
 		end
 	end
 
-	luapack.DebugMsg("Couldn't CompileFile Lua file from luapack, proceeding with normal CompileFile", path)
+	luapack.DebugMsg("Couldn't CompileFile Lua file from luapack, proceeding with normal CompileFile", filepath)
 	return luapack.CompileFile(filepath)
 end
 
