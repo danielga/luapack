@@ -3,38 +3,38 @@ AddCSLuaFile("filesystem.lua")
 AddCSLuaFile("autoloader.lua")
 AddCSLuaFile("includes/real_init.lua")
 
+if not file.IsDir("luapack", "DATA") then
+	file.CreateDir("luapack")
+end
+
 -- for the hook module, no need to include util.lua and all the trash it brings
 function IsValid(object)
 	return object and object.IsValid and object:IsValid()
 end
 
-local red = {r = 255, g = 0, b = 0, a = 255}
-local function ErrorMsg(...)
-	MsgC(red, "[LuaPack] ")
-	print(...)
-end
-
-local green = {r = 0, g = 255, b = 0, a = 255}
-local function LogMsg(...)
-	MsgC(green, "[LuaPack] ")
-	print(...)
-end
-
-local yellow = {r = 255, g = 255, b = 0, a = 255}
-local function DebugMsg(...)
-	MsgC(yellow, "[LuaPack] ")
-	print(...)
-end
+luapack = luapack or {Bypass = false, FileList = {}, FinishedAdding = false}
 
 require("hook")
 require("addcs")
 require("crypt")
 require("luaiox")
 
-luapack = luapack or {Bypass = false, FileList = {}, FinishedAdding = false}
+local red = {r = 255, g = 0, b = 0, a = 255}
+function luapack.ErrorMsg(...)
+	MsgC(red, "[LuaPack] ")
+	print(...)
+end
 
-if not file.IsDir("luapack", "DATA") then
-	file.CreateDir("luapack")
+local green = {r = 0, g = 255, b = 0, a = 255}
+function luapack.LogMsg(...)
+	MsgC(green, "[LuaPack] ")
+	print(...)
+end
+
+local yellow = {r = 255, g = 255, b = 0, a = 255}
+function luapack.DebugMsg(...)
+	MsgC(yellow, "[LuaPack] ")
+	print(...)
 end
 
 function luapack.AddCSLuaFile(path)
@@ -73,17 +73,24 @@ end
 
 function luapack.AddFile(filepath)
 	if luapack.FinishedAdding then
-		ErrorMsg("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
+		luapack.ErrorMsg("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
 		return false
 	end
 
 	filepath = CleanPath(luapack.CanonicalizePath(filepath))
 	if not file.Exists(filepath, "LUA") then
+		luapack.ErrorMsg("File doesn't exist (unable to add it to file list) '" .. filepath .. "'.")
 		return false
 	end
 
-	table.insert(luapack.FileList, filepath)
+	local gm = filepath:match("^([^/]*)/gamemode/cl_init.lua")
+	if gm then
+		luapack.DebugMsg("Adding gamemode cl_init.lua file through normal AddCSLuaFile '" .. gm .. "'.")
+		luapack.AddCSLuaFile(filepath)
+		return true
+	end
 
+	table.insert(luapack.FileList, filepath)
 	return true
 end
 
@@ -103,7 +110,7 @@ local function ReadFile(filepath, pathlist)
 		f:Close()
 		return data
 	else
-		ErrorMsg("ReadFile failed", filepath, pathlist)
+		luapack.ErrorMsg("ReadFile failed", filepath, pathlist)
 	end
 end
 
@@ -137,12 +144,12 @@ end
 local function WriteFile(filepath, str)
 	local f = io.open(filepath, "wb")
 	if f then
-		DebugMsg("WriteFile", filepath)
+		luapack.DebugMsg("WriteFile", filepath)
 
 		f:write(str)
 		f:close()
 	else
-		ErrorMsg("WriteFile failed", filepath)
+		luapack.ErrorMsg("WriteFile failed", filepath)
 	end
 end
 
@@ -150,16 +157,16 @@ local function RenameFile(from, to)
 	local ok = io.rename(from, to)
 
 	if ok then
-		DebugMsg("RenameFile", from, to)
+		luapack.DebugMsg("RenameFile", from, to)
 	else
-		ErrorMsg("RenameFile failed", from, to)
+		luapack.ErrorMsg("RenameFile failed", from, to)
 	end
 
 	return ok
 end
 
 function luapack.Build()
-	LogMsg("Building pack...")
+	luapack.LogMsg("Building pack...")
 	
 	local time = SysTime()
 
@@ -167,13 +174,13 @@ function luapack.Build()
 
 	local f = file.Open(luapacktemp, "wb", "DATA")
 	if not f then
-		ErrorMsg("Failed to open '" .. luapacktemp .. "' for writing")
+		luapack.ErrorMsg("Failed to open '" .. luapacktemp .. "' for writing")
 		return
 	end
 
 	local h = crypt.sha1()
 	if not h then
-		ErrorMsg("Failed to create SHA-1 hasher object")
+		luapack.ErrorMsg("Failed to create SHA-1 hasher object")
 		return
 	end
 
@@ -224,7 +231,7 @@ function luapack.Build()
 		local hashpath = "garrysmod/" .. string.GetPathFromFilename(debug.getinfo(1, "S").short_src)
 		WriteFile(hashpath .. "hash.lua", "luapack.CurrentHash = \"" .. luapack.CurrentHash .. "\"")
 	else
-		DebugMsg("Deleting obsolete temporary file")
+		luapack.DebugMsg("Deleting obsolete temporary file")
 		file.Delete(luapacktemp)
 	end
 
@@ -234,7 +241,7 @@ function luapack.Build()
 
 	luapack.FinishedAdding = true
 
-	LogMsg("Pack building took " .. SysTime() - time .. " seconds!")
+	luapack.LogMsg("Pack building took " .. SysTime() - time .. " seconds!")
 end
 
 hook.Add("InitPostEntity", "luapack resource creation", function()

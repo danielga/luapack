@@ -18,19 +18,19 @@ luapack.include("filesystem.lua")
 luapack.RootDirectory = luapack.NewRootDirectory()
 
 local red = {r = 255, g = 0, b = 0, a = 255}
-local function ErrorMsg(...)
+function luapack.ErrorMsg(...)
 	MsgC(red, "[LuaPack] ")
 	print(...)
 end
 
 local green = {r = 0, g = 255, b = 0, a = 255}
-local function LogMsg(...)
+function luapack.LogMsg(...)
 	MsgC(green, "[LuaPack] ")
 	print(...)
 end
 
 local yellow = {r = 255, g = 255, b = 0, a = 255}
-local function DebugMsg(...)
+function luapack.DebugMsg(...)
 	MsgC(yellow, "[LuaPack] ")
 	print(...)
 end
@@ -61,13 +61,13 @@ function luapack.CanonicalizePath(path, curpath)
 end
 
 function luapack.BuildFileList()
-	LogMsg("Starting Lua file list build!")
+	luapack.LogMsg("Starting Lua file list build!")
 
 	local time = SysTime()
 
 	local f = file.Open(luapack.CurrentPackFilePath, "rb", "GAME")
 	if not f then
-		ErrorMsg("Failed to open current pack file for reading", luapack.CurrentPackFilePath)
+		luapack.ErrorMsg("Failed to open current pack file for reading", luapack.CurrentPackFilePath)
 		return
 	end
 
@@ -86,7 +86,7 @@ function luapack.BuildFileList()
 		end
 	end
 
-	LogMsg("Lua file list building took " .. SysTime() - time .. " seconds!")
+	luapack.LogMsg("Lua file list building took " .. SysTime() - time .. " seconds!")
 end
 
 luapack.BuildFileList()
@@ -102,7 +102,7 @@ function luapack.GetContents(filepath)
 
 	local f = file.Open(luapack.CurrentPackFilePath, "rb", "GAME")
 	if not f then
-		ErrorMsg("Failed to open pack file for reading", luapack.CurrentPackFilePath, filepath)
+		luapack.ErrorMsg("Failed to open pack file for reading", luapack.CurrentPackFilePath, filepath)
 		return
 	end
 
@@ -123,7 +123,7 @@ function require(module)
 		return
 	end
 
-	DebugMsg("Couldn't require Lua module, proceeding with normal require", module)
+	luapack.DebugMsg("Couldn't require Lua module, proceeding with normal require", module)
 
 	return luapack.require(module)
 end
@@ -154,7 +154,7 @@ function include(filepath)
 		return
 	end
 
-	DebugMsg("Couldn't include Lua file, proceeding with normal include", path)
+	--luapack.DebugMsg("Couldn't include Lua file, proceeding with normal include", path)
 
 	luapack.include(filepath)
 end
@@ -174,7 +174,7 @@ function CompileFile(filepath)
 		end
 	end
 
-	DebugMsg("Couldn't CompileFile Lua file, proceeding with normal CompileFile", path)
+	luapack.DebugMsg("Couldn't CompileFile Lua file, proceeding with normal CompileFile", path)
 
 	return luapack.CompileFile(filepath)
 end
@@ -182,7 +182,7 @@ end
 function file.Find(filepath, filelist, sorting)
 	if filelist == "LUA" then
 		local files, folders = luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath))
-		local simplefiles, simplefolders = {}, {}
+		local simplefiles, simplefolders = luapack.fileFind(filepath, "LUA")
 
 		for i = 1, #files do
 			table.insert(simplefiles, files[i]:GetPath())
@@ -200,7 +200,7 @@ end
 
 function file.Exists(filepath, filelist)
 	if filelist == "LUA" then
-		local files, folders = luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath, false))
+		local files, folders = file.Find(filepath, filelist)
 		return files[1] ~= nil or folders[1] ~= nil
 	else
 		return luapack.fileExists(filepath, filelist)
@@ -209,7 +209,7 @@ end
 
 function file.IsDir(filepath, filelist)
 	if filelist == "LUA" then
-		local _, folders = luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath, false))
+		local _, folders = file.Find(filepath, filelist)
 		return folders[1] ~= nil
 	else
 		return luapack.fileIsDir(filepath, filelist)

@@ -130,39 +130,21 @@ function luapack.LoadEffects(path)
 	end
 end
 
-function luapack.LoadGamemode(name, tab)
-	luapack.LoadEntities(name .. "/entities/entities")
-	luapack.LoadWeapons(name .. "/entities/weapons")
-	luapack.LoadEffects(name .. "/entities/effects")
-
-	local gm = GM
-	GM = tab
-	include(name .. "/gamemode/cl_init.lua")
-	GM = gm
-end
-
 luapack.LoadVGUI()
 luapack.LoadAutorun()
 
 luapack.gamemodeRegister = luapack.gamemodeRegister or gamemode.Register
 
-local tt = {}
 gamemode.Register = function(gm, name, base)
-	if not tt[name] then
-		tt[name] = true
-
-		luapack.LoadGamemode(name, gm)
-
-		print("gamemode.Register>", name)
-	end
-
+	luapack.LoadEntities(name .. "/entities/entities")
+	luapack.LoadWeapons(name .. "/entities/weapons")
+	luapack.LoadEffects(name .. "/entities/effects")
+	luapack.LogMsg("Registering gamemode '" .. name .. "' with base '" .. base .. "'.")
 	return luapack.gamemodeRegister(gm, name, base)
 end
 
-hook.Add("PostGamemodeLoaded", "luapack testing", function()
+hook.Add("PostGamemodeLoaded", "luapack entities loader", function()
 	luapack.LoadEntities("entities")
 	luapack.LoadWeapons("weapons")
 	luapack.LoadEffects("effects")
-
-	print("PostGamemodeLoaded>", engine.ActiveGamemode())
 end)
