@@ -199,6 +199,8 @@ function luapack.Build()
 		local datalen = #data
 		if datalen > 0 then
 			h:Update(data)
+			data = util.Compress(data)
+			datalen = #data
 		end
 
 		f:WriteLong(offset)
