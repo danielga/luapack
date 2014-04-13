@@ -124,7 +124,6 @@ function require(module)
 	end
 
 	luapack.DebugMsg("Couldn't require Lua module, proceeding with normal require", module)
-
 	return luapack.require(module)
 end
 
@@ -136,46 +135,43 @@ local function GetPathFromFilename(path)
 	return path:match("^(.*[/\\])[^/\\]-$") or ""
 end
 
-function include(filepath)
-	local short_src = CleanPath(debug.getinfo(2, "S").short_src)
-	if short_src == "includes/util.lua" then
-		short_src = CleanPath(debug.getinfo(3, "S").short_src)
+local function GetPathFromStack(filepath)
+	local i = 3
+	local dbg = debug.getinfo(i, "S")
+	while dbg do
+		local path = GetPathFromFilename(dbg.short_src) .. filepath
+		if file.Exists(path, "LUA") then
+			return path
+		end
+
+		i = i + 1
+		dbg = debug.getinfo(i, "S")
 	end
-
-	local path = GetPathFromFilename(short_src) .. filepath
-	local contents = luapack.GetContents(path)
-	if not contents then
-		path = filepath
-		contents = luapack.GetContents(path)
-	end
-
-	if contents then
-		RunStringEx(contents, path)
-		return
-	end
-
-	--luapack.DebugMsg("Couldn't include Lua file, proceeding with normal include", path)
-
-	luapack.include(filepath)
 end
 
-function CompileFile(filepath)
-	local path = GetPathFromFilename(CleanPath(debug.getinfo(2, "S").short_src)) .. filepath
-	local contents = luapack.GetContents(path)
-	if not contents then
-		path = filepath
-		contents = luapack.GetContents(path)
-	end
-
-	if contents then
-		local f = CompileString(contents, path, false)
-		if isfunction(f) then
-			return f
+function include(filepath)
+	local path = GetPathFromStack(filepath)
+	if path then
+		local contents = luapack.GetContents(path)
+		if contents then
+			return RunStringEx(contents, path)
 		end
 	end
 
-	luapack.DebugMsg("Couldn't CompileFile Lua file, proceeding with normal CompileFile", path)
+	luapack.DebugMsg("Couldn't include Lua file from luapack, proceeding with normal include", filepath)
+	return luapack.include(filepath)
+end
 
+function CompileFile(filepath)
+	local path = GetPathFromStack(filepath)
+	if path then
+		local contents = luapack.GetContents(path)
+		if contents then
+			return CompileString(contents, path, false)
+		end
+	end
+
+	luapack.DebugMsg("Couldn't CompileFile Lua file from luapack, proceeding with normal CompileFile", path)
 	return luapack.CompileFile(filepath)
 end
 
