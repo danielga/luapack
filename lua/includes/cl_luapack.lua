@@ -358,7 +358,7 @@ function CompileFile(filepath)
 
 	local file = GetFileFromPathStack(filepath)
 	if file then
-		local ret = CompileString(file:GetContents(), path, false)
+		local ret = CompileString(file:GetContents(), file:GetFullPath(), false)
 
 		AddTime(SysTime() - time)
 
