@@ -5,10 +5,10 @@
 if SERVER then
 
 	AddCSLuaFile()
-	include("luapack/sv_core.lua")
+	include("sv_luapack.lua")
 
 else
 
-	include("luapack/cl_core.lua")
+	include("cl_luapack.lua")
 
 end
