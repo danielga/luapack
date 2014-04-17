@@ -260,6 +260,10 @@ function luapack.CanonicalizePath(path)
 	return path:match("lua/(.+)$") or (path:match("^gamemodes/(.+)$") or path)
 end
 
+local function CreateRootDirectory(f)
+	return setmetatable({__file = f, __list = {}}, DIRECTORY)
+end
+
 function luapack.BuildFileList(filepath)
 	LogMsg("Starting Lua file list build of '" .. filepath .. "'!")
 
@@ -273,7 +277,7 @@ function luapack.BuildFileList(filepath)
 
 	local header = f:Read(f:ReadLong())
 
-	local dir = setmetatable({__file = f, __list = {}}, DIRECTORY)
+	local dir = CreateRootDirectory(f)
 
 	for offset, size, path in header:gmatch("(....)(....)([^%z]+)") do
 		local o1, o2, o3, o4 = string.byte(offset, 1, 4)
@@ -294,13 +298,16 @@ local function GetFileFromPathStack(filepath)
 	local i = 3
 	local dbg = debug.getinfo(i, "S")
 	while dbg do
-		local path = dbg.short_src:match("^(.*[/\\])[^/\\]-$")
-		if path then
-			path = luapack.CanonicalizePath(path .. filepath)
-			local files = luapack.RootDirectory:Get(path, false)
-			if files[1] then
-				return files[1]
-			end
+		local path = dbg.source:match("^@?(.*)[/\\][^/\\]-$") or dbg.source:match("^@?(.*)$")
+		if path == "" then
+			path = filepath
+		else
+			path = path .. "/" .. filepath
+		end
+		path = luapack.CanonicalizePath(path)
+		local files = luapack.RootDirectory:Get(path, false)
+		if files[1] then
+			return files[1]
 		end
 
 		i = i + 1
@@ -466,51 +473,9 @@ function luapack.LoadMatproxy()
 	end
 end
 
-function luapack.LoadEntity(path, name)
-	if scripted_ents.GetStored(name) then
-		return
-	end
-
-	ENT = {
-		Base = "base_entity",
-		Type = "anim",
-		ClassName = name
-	}
-
-	if file.IsDir(path .. "/" .. name, "LUA") then
-		if not file.Exists(path .. "/" .. name .. "/cl_init.lua", "LUA") then
-			include(path .. "/" .. name .. "/shared.lua")
-		else
-			include(path .. "/" .. name .. "/cl_init.lua")
-		end
-	else
-		include(path .. "/" .. name .. ".lua")
-	end
-
-	local ent = ENT
-	ENT = nil
-	if ent.Base ~= name then
-		luapack.LoadEntity(path, ent.Base)
-	end
-
-	scripted_ents.Register(ent, name)
-end
-
-function luapack.LoadEntities(path)
-	local files, folders = file.Find(path .. "/*", "LUA")
-	for i = 1, #files do
-		luapack.LoadEntity(path, RemoveExtension(files[i]))
-	end
-
-	for i = 1, #folders do
-		luapack.LoadEntity(path, folders[i])
-	end
-end
-
-function luapack.LoadWeapon(path, name)
-	if weapons.GetStored(name) then
-		return
-	end
+local weapons_dir = CreateRootDirectory()
+function luapack.LoadWeapon(obj)
+	local name = obj:IsDirectory() and obj:GetPath() or RemoveExtension(obj:GetPath())
 
 	SWEP = {
 		Primary = {},
@@ -519,45 +484,96 @@ function luapack.LoadWeapon(path, name)
 		ClassName = name
 	}
 
-	if file.IsDir(path .. "/" .. name, "LUA") then
-		SWEP.Folder = path .. "/" .. name
-		if not file.Exists(path .. "/" .. name .. "/cl_init.lua", "LUA") then
-			include(path .. "/" .. name .. "/shared.lua")
-		else
-			include(path .. "/" .. name .. "/cl_init.lua")
+	if obj:IsDirectory() then
+		SWEP.Folder = obj:GetFullPath()
+		local files = obj:Get("cl_init.lua", false)
+		local file = files[1]
+		if file then
+			RunStringEx(file:GetContents(), file:GetFullPath())
+		end
+
+		files = obj:Get("shared.lua", false)
+		file = files[1]
+		if file then
+			RunStringEx(file:GetContents(), file:GetFullPath())
 		end
 	else
-		SWEP.Folder = path
-		include(path .. "/" .. name .. ".lua")
+		SWEP.Folder = obj:GetParent():GetFullPath()
+		RunStringEx(obj:GetContents(), obj:GetFullPath())
 	end
 
-	local swep = SWEP
+	weapons.Register(SWEP, name)
+
 	SWEP = nil
-	if swep.Base ~= name then
-		luapack.LoadWeapon(path, swep.Base)
-	end
-
-	weapons.Register(swep, name)
 end
 
-function luapack.LoadWeapons(path)
-	local files, folders = file.Find(path .. "/*", "LUA")
+function luapack.LoadWeapons()
+	local files, folders = weapons_dir:Get("*")
 	for i = 1, #files do
-		luapack.LoadWeapon(path, RemoveExtension(files[i]))
+		luapack.LoadWeapon(files[i])
 	end
 
 	for i = 1, #folders do
-		luapack.LoadWeapon(path, folders[i])
+		luapack.LoadWeapon(folders[i])
 	end
 end
 
-function luapack.LoadEffect(path, name)
+local entities_dir = CreateRootDirectory()
+function luapack.LoadEntity(obj)
+	local name = obj:IsDirectory() and obj:GetPath() or RemoveExtension(obj:GetPath())
+
+	ENT = {
+		Base = "base_entity",
+		Type = "anim",
+		ClassName = name
+	}
+
+	if obj:IsDirectory() then
+		local files = obj:Get("cl_init.lua", false)
+		local file = files[1]
+		if file then
+			RunStringEx(file:GetContents(), file:GetFullPath())
+		end
+
+		files = obj:Get("shared.lua", false)
+		file = files[1]
+		if file then
+			RunStringEx(file:GetContents(), file:GetFullPath())
+		end
+	else
+		RunStringEx(obj:GetContents(), obj:GetFullPath())
+	end
+
+	scripted_ents.Register(ENT, name)
+
+	ENT = nil
+end
+
+function luapack.LoadEntities()
+	local files, folders = entities_dir:Get("*")
+	for i = 1, #files do
+		luapack.LoadEntity(files[i])
+	end
+
+	for i = 1, #folders do
+		luapack.LoadEntity(folders[i])
+	end
+end
+
+local effects_dir = CreateRootDirectory()
+function luapack.LoadEffect(obj)
+	local name = obj:IsDirectory() and obj:GetPath() or RemoveExtension(obj:GetPath())
+
 	EFFECT = {}
 
-	if file.IsDir(path .. "/" .. name, "LUA") then
-		include(path .. "/" .. name .. "/init.lua")
+	if obj:IsDirectory() then
+		local files = obj:Get("init.lua", false)
+		local file = files[1]
+		if file then
+			RunStringEx(file:GetContents(), file:GetFullPath())
+		end
 	else
-		include(path .. "/" .. name .. ".lua")
+		RunStringEx(obj:GetContents(), obj:GetFullPath())
 	end
 
 	effects.Register(EFFECT, name)
@@ -565,31 +581,50 @@ function luapack.LoadEffect(path, name)
 	EFFECT = nil
 end
 
-function luapack.LoadEffects(path)
-	local files, folders = file.Find(path .. "/*", "LUA")
+function luapack.LoadEffects()
+	local files, folders = effects_dir:Get("*")
 	for i = 1, #files do
-		luapack.LoadEffect(path, RemoveExtension(files[i]))
+		luapack.LoadEffect(files[i])
 	end
 
 	for i = 1, #folders do
-		luapack.LoadEffect(path, folders[i])
+		luapack.LoadEffect(folders[i])
 	end
 end
 
 gamemode.Register = function(gm, name, base)
 	LogMsg("Registering gamemode '" .. name .. "' with base '" .. base .. "'.")
 
-	luapack.LoadWeapons(name .. "/entities/weapons")
-	luapack.LoadEntities(name .. "/entities/entities")
-	luapack.LoadEffects(name .. "/entities/effects")
+	local files, folders = luapack.RootDirectory:Get(name .. "/entities/weapons/*")
+	for i = 1, #files do
+		table.insert(weapons_dir.__list, files[i])
+	end
+
+	for i = 1, #folders do
+		table.insert(weapons_dir.__list, folders[i])
+	end
+
+	files, folders = luapack.RootDirectory:Get(name .. "/entities/entities/*")
+	for i = 1, #files do
+		table.insert(entities_dir.__list, files[i])
+	end
+
+	for i = 1, #folders do
+		table.insert(entities_dir.__list, folders[i])
+	end
+
+	files, folders = luapack.RootDirectory:Get(name .. "/entities/effects/*")
+	for i = 1, #files do
+		table.insert(effects_dir.__list, files[i])
+	end
+
+	for i = 1, #folders do
+		table.insert(effects_dir.__list, folders[i])
+	end
 
 	local ret = luapack.gamemodeRegister(gm, name, base)
 
 	if name == "base" then
-		luapack.LoadWeapons("weapons")
-		luapack.LoadEntities("entities")
-		luapack.LoadEffects("effects")
-
 		luapack.LoadAutorun()
 		luapack.LoadPostProcess()
 		luapack.LoadVGUI()
@@ -598,3 +633,36 @@ gamemode.Register = function(gm, name, base)
 
 	return ret
 end
+
+hook.Add("CreateTeams", "luapack loader", function()
+	local files, folders = luapack.RootDirectory:Get("weapons/*")
+	for i = 1, #files do
+		table.insert(weapons_dir.__list, files[i])
+	end
+
+	for i = 1, #folders do
+		table.insert(weapons_dir.__list, folders[i])
+	end
+
+	files, folders = luapack.RootDirectory:Get("entities/*")
+	for i = 1, #files do
+		table.insert(entities_dir.__list, files[i])
+	end
+
+	for i = 1, #folders do
+		table.insert(entities_dir.__list, folders[i])
+	end
+
+	files, folders = luapack.RootDirectory:Get("effects/*")
+	for i = 1, #files do
+		table.insert(effects_dir.__list, files[i])
+	end
+
+	for i = 1, #folders do
+		table.insert(effects_dir.__list, folders[i])
+	end
+
+	luapack.LoadWeapons()
+	luapack.LoadEntities()
+	luapack.LoadEffects()
+end)
