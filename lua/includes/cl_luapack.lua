@@ -435,6 +435,7 @@ luapack.include("_init.lua")
 ---------------------------------------------------------------------
 
 luapack.gamemodeRegister = luapack.gamemodeRegister or gamemode.Register
+luapack.scripted_entsOnLoaded = luapack.scripted_entsOnLoaded or scripted_ents.OnLoaded
 
 local function RemoveExtension(filename)
 	return filename:match("([^%.]+).lua")
@@ -592,10 +593,8 @@ function luapack.LoadEffects()
 	end
 end
 
-gamemode.Register = function(gm, name, base)
-	LogMsg("Registering gamemode '" .. name .. "' with base '" .. base .. "'.")
-
-	local files, folders = luapack.RootDirectory:Get(name .. "/entities/weapons/*")
+local function MergeEntitiesFolders(path)
+	local files, folders = luapack.RootDirectory:Get(path .. "weapons/*")
 	for i = 1, #files do
 		table.insert(weapons_dir.__list, files[i])
 	end
@@ -604,7 +603,7 @@ gamemode.Register = function(gm, name, base)
 		table.insert(weapons_dir.__list, folders[i])
 	end
 
-	files, folders = luapack.RootDirectory:Get(name .. "/entities/entities/*")
+	files, folders = luapack.RootDirectory:Get(path .. "entities/*")
 	for i = 1, #files do
 		table.insert(entities_dir.__list, files[i])
 	end
@@ -613,7 +612,7 @@ gamemode.Register = function(gm, name, base)
 		table.insert(entities_dir.__list, folders[i])
 	end
 
-	files, folders = luapack.RootDirectory:Get(name .. "/entities/effects/*")
+	files, folders = luapack.RootDirectory:Get(path .. "effects/*")
 	for i = 1, #files do
 		table.insert(effects_dir.__list, files[i])
 	end
@@ -621,6 +620,12 @@ gamemode.Register = function(gm, name, base)
 	for i = 1, #folders do
 		table.insert(effects_dir.__list, folders[i])
 	end
+end
+
+gamemode.Register = function(gm, name, base)
+	LogMsg("Registering gamemode '" .. name .. "' with base '" .. base .. "'.")
+
+	MergeEntitiesFolders(name .. "/entities/")
 
 	local ret = luapack.gamemodeRegister(gm, name, base)
 
@@ -634,35 +639,12 @@ gamemode.Register = function(gm, name, base)
 	return ret
 end
 
-hook.Add("CreateTeams", "luapack loader", function()
-	local files, folders = luapack.RootDirectory:Get("weapons/*")
-	for i = 1, #files do
-		table.insert(weapons_dir.__list, files[i])
-	end
-
-	for i = 1, #folders do
-		table.insert(weapons_dir.__list, folders[i])
-	end
-
-	files, folders = luapack.RootDirectory:Get("entities/*")
-	for i = 1, #files do
-		table.insert(entities_dir.__list, files[i])
-	end
-
-	for i = 1, #folders do
-		table.insert(entities_dir.__list, folders[i])
-	end
-
-	files, folders = luapack.RootDirectory:Get("effects/*")
-	for i = 1, #files do
-		table.insert(effects_dir.__list, files[i])
-	end
-
-	for i = 1, #folders do
-		table.insert(effects_dir.__list, folders[i])
-	end
+function scripted_ents.OnLoaded()
+	MergeEntitiesFolders("")
 
 	luapack.LoadWeapons()
 	luapack.LoadEntities()
 	luapack.LoadEffects()
-end)
+
+	return luapack.scripted_entsOnLoaded()
+end
