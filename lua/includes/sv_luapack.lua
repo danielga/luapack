@@ -56,6 +56,12 @@ function luapack.AddCSLuaFile(path)
 	luapack.Bypass = false
 end
 
+function luapack.IsBlacklistedFile(filepath)
+	return	filepath == "derma/init.lua" or
+			filepath == "skins/default.lua" or
+			filepath:match("^([^/]*)/gamemode/cl_init.lua")
+end
+
 function luapack.AddFile(filepath)
 	if luapack.FinishedAdding then
 		ErrorMsg("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
@@ -68,9 +74,8 @@ function luapack.AddFile(filepath)
 		return false
 	end
 
-	local gm = filepath:match("^([^/]*)/gamemode/cl_init.lua")
-	if gm then
-		DebugMsg("Adding gamemode cl_init.lua file through normal AddCSLuaFile '" .. gm .. "'.")
+	if luapack.IsBlacklistedFile(filepath) then
+		DebugMsg("Adding file through normal AddCSLuaFile '" .. filepath .. "'.")
 		luapack.AddCSLuaFile(filepath)
 		return true
 	end

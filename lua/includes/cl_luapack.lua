@@ -100,6 +100,8 @@ function DIRECTORY:AddFile(path, offset, size)
 			table.insert(self:GetList(), file)
 			return file
 		end
+
+		return files[1]
 	else
 		local _, dirs = self:Get(cur, false)
 		local dir = dirs[1]
@@ -116,10 +118,17 @@ function DIRECTORY:AddDirectory(path)
 	if single then
 		local files, dirs = self:Get(cur, false)
 		if not files[1] and not dirs[1] then
-			local dir = setmetatable({__path = cur, __parent = self, __file = self.__file, __list = {}}, DIRECTORY)
+			local dir = setmetatable({
+				__path = cur,
+				__parent = self,
+				__file = self.__file,
+				__list = {}
+			}, DIRECTORY)
 			table.insert(self:GetList(), dir)
 			return dir
 		end
+
+		return dirs[1]
 	else
 		local _, dirs = self:Get(cur, false)
 		local dir = dirs[1]
@@ -268,8 +277,10 @@ function luapack.BuildFileList(filepath)
 
 	for offset, size, path in header:gmatch("(....)(....)([^%z]+)") do
 		local o1, o2, o3, o4 = string.byte(offset, 1, 4)
+		offset = o4 * 16777216 + o3 * 65536 + o2 * 256 + o1
 		local s1, s2, s3, s4 = string.byte(size, 1, 4)
-		dir:AddFile(path, o4 * 16777216 + o3 * 65536 + o2 * 256 + o1, s4 * 16777216 + s3 * 65536 + s2 * 256 + s1)
+		size = s4 * 16777216 + s3 * 65536 + s2 * 256 + s1
+		dir:AddFile(path, offset, size)
 	end
 
 	LogMsg("Lua file list building of '" .. filepath .. "' took " .. SysTime() - time .. " seconds!")
@@ -434,11 +445,24 @@ function luapack.LoadAutorun()
 	end
 end
 
+function luapack.LoadPostProcess()
+	local files = file.Find("postprocess/*.lua", "LUA")
+	for i = 1, #files do
+		include("postprocess/" .. files[i])
+	end
+end
+
 function luapack.LoadVGUI()
-	include("derma/init.lua")
 	local files = file.Find("vgui/*.lua", "LUA")
 	for i = 1, #files do
 		include("vgui/" .. files[i])
+	end
+end
+
+function luapack.LoadMatproxy()
+	local files = file.Find("matproxy/*.lua", "LUA")
+	for i = 1, #files do
+		include("matproxy/" .. files[i])
 	end
 end
 
@@ -463,11 +487,13 @@ function luapack.LoadEntity(path, name)
 		include(path .. "/" .. name .. ".lua")
 	end
 
-	if ENT.Base ~= name then
-		luapack.LoadEntity(path, ENT.Base)
+	local ent = ENT
+	ENT = nil
+	if ent.Base ~= name then
+		luapack.LoadEntity(path, ent.Base)
 	end
 
-	scripted_ents.Register(ENT, name)
+	scripted_ents.Register(ent, name)
 end
 
 function luapack.LoadEntities(path)
@@ -505,11 +531,13 @@ function luapack.LoadWeapon(path, name)
 		include(path .. "/" .. name .. ".lua")
 	end
 
-	if SWEP.Base ~= name and not scripted_ents.GetStored(SWEP.Base) then
-		luapack.LoadWeapon(path, SWEP.Base)
+	local swep = SWEP
+	SWEP = nil
+	if swep.Base ~= name then
+		luapack.LoadWeapon(path, swep.Base)
 	end
 
-	weapons.Register(SWEP, name)
+	weapons.Register(swep, name)
 end
 
 function luapack.LoadWeapons(path)
@@ -524,10 +552,6 @@ function luapack.LoadWeapons(path)
 end
 
 function luapack.LoadEffect(path, name)
-	if effects.Create(name) then
-		return
-	end
-
 	EFFECT = {}
 
 	if file.IsDir(path .. "/" .. name, "LUA") then
@@ -537,6 +561,8 @@ function luapack.LoadEffect(path, name)
 	end
 
 	effects.Register(EFFECT, name)
+
+	EFFECT = nil
 end
 
 function luapack.LoadEffects(path)
@@ -550,19 +576,25 @@ function luapack.LoadEffects(path)
 	end
 end
 
-luapack.LoadVGUI()
-luapack.LoadAutorun()
-
 gamemode.Register = function(gm, name, base)
-	luapack.LoadEntities(name .. "/entities/entities")
-	luapack.LoadWeapons(name .. "/entities/weapons")
-	luapack.LoadEffects(name .. "/entities/effects")
 	LogMsg("Registering gamemode '" .. name .. "' with base '" .. base .. "'.")
-	return luapack.gamemodeRegister(gm, name, base)
-end
 
-hook.Add("PostGamemodeLoaded", "luapack entities loader", function()
-	luapack.LoadEntities("entities")
-	luapack.LoadWeapons("weapons")
-	luapack.LoadEffects("effects")
-end)
+	luapack.LoadWeapons(name .. "/entities/weapons")
+	luapack.LoadEntities(name .. "/entities/entities")
+	luapack.LoadEffects(name .. "/entities/effects")
+
+	local ret = luapack.gamemodeRegister(gm, name, base)
+
+	if name == "base" then
+		luapack.LoadWeapons("weapons")
+		luapack.LoadEntities("entities")
+		luapack.LoadEffects("effects")
+
+		luapack.LoadAutorun()
+		luapack.LoadPostProcess()
+		luapack.LoadVGUI()
+		luapack.LoadMatproxy()
+	end
+
+	return ret
+end
