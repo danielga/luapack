@@ -226,12 +226,6 @@ luapack = luapack or {
 	CurrentHash = currenthash
 }
 
-local red = {r = 255, g = 0, b = 0, a = 255}
-local function ErrorMsg(...)
-	MsgC(red, "[LuaPack] ")
-	print(...)
-end
-
 local green = {r = 0, g = 255, b = 0, a = 255}
 local function LogMsg(...)
 	MsgC(green, "[LuaPack] ")
@@ -271,7 +265,7 @@ function luapack.BuildFileList(filepath)
 
 	local f = file.Open(filepath, "rb", "GAME")
 	if not f then
-		ErrorMsg("Failed to open current pack file for reading", filepath)
+		error("Failed to open current pack file for reading '" .. filepath .. "'")
 		return
 	end
 

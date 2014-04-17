@@ -16,12 +16,6 @@ require("luaiox")
 
 luapack = luapack or {Bypass = false, FileList = {}, FinishedAdding = false}
 
-local red = {r = 255, g = 0, b = 0, a = 255}
-local function ErrorMsg(...)
-	MsgC(red, "[LuaPack] ")
-	print(...)
-end
-
 local green = {r = 0, g = 255, b = 0, a = 255}
 local function LogMsg(...)
 	MsgC(green, "[LuaPack] ")
@@ -64,14 +58,12 @@ end
 
 function luapack.AddFile(filepath)
 	if luapack.FinishedAdding then
-		ErrorMsg("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
-		return false
+		error("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
 	end
 
 	filepath = luapack.CanonicalizePath(filepath)
 	if not file.Exists(filepath, "LUA") then
-		ErrorMsg("File doesn't exist (unable to add it to file list) '" .. filepath .. "'.")
-		return false
+		error("File doesn't exist (unable to add it to file list) '" .. filepath .. "'.")
 	end
 
 	if luapack.IsBlacklistedFile(filepath) then
@@ -95,7 +87,7 @@ local function ReadFile(filepath, pathlist)
 		f:Close()
 		return data
 	else
-		ErrorMsg("ReadFile failed", filepath, pathlist)
+		error("ReadFile failed '" .. filepath .. "' - '" .. pathlist .. "'")
 	end
 end
 
@@ -130,14 +122,12 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	local f = file.Open(luapacktemp, "wb", "DATA")
 	if not f then
-		ErrorMsg("Failed to open '" .. luapacktemp .. "' for writing")
-		return
+		error("Failed to open '" .. luapacktemp .. "' for writing")
 	end
 
 	local h = crypt.sha1()
 	if not h then
-		ErrorMsg("Failed to create SHA-1 hasher object")
-		return
+		error("Failed to create SHA-1 hasher object")
 	end
 
 	local headersize = 0
