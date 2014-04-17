@@ -58,12 +58,14 @@ end
 
 function luapack.AddFile(filepath)
 	if luapack.FinishedAdding then
-		error("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
+		DebugMsg("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
+		return false
 	end
 
 	filepath = luapack.CanonicalizePath(filepath)
 	if not file.Exists(filepath, "LUA") then
-		error("File doesn't exist (unable to add it to file list) '" .. filepath .. "'.")
+		DebugMsg("File doesn't exist (unable to add it to file list) '" .. filepath .. "'.")
+		return false
 	end
 
 	if luapack.IsBlacklistedFile(filepath) then
