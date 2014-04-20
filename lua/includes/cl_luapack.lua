@@ -42,6 +42,11 @@ function FILE:GetContents()
 	local data = f:Read(self.__size)
 	if data then
 		data = util.Decompress(data)
+
+		local tcrc = tonumber(util.CRC(data))
+		if tcrc ~= self.__crc then
+			error("CRC not matching for file '" .. self:GetFullPath() .. "'")
+		end
 	end
 
 	return data or ""
@@ -85,7 +90,7 @@ local function GetPathParts(path)
 	end
 end
 
-function DIRECTORY:AddFile(path, offset, size)
+function DIRECTORY:AddFile(path, offset, size, crc)
 	local single, cur, rest = GetPathParts(path)
 	if single then
 		local files, dirs = self:Get(cur, false)
@@ -94,6 +99,7 @@ function DIRECTORY:AddFile(path, offset, size)
 				__path = cur,
 				__offset = offset,
 				__size = size,
+				__crc = crc,
 				__parent = self,
 				__file = self.__file
 			}, FILE)
@@ -109,7 +115,7 @@ function DIRECTORY:AddFile(path, offset, size)
 			dir = self:AddDirectory(cur)
 		end
 
-		return dir:AddFile(rest, offset, size)
+		return dir:AddFile(rest, offset, size, crc)
 	end
 end
 
@@ -266,6 +272,20 @@ local function ReadULong(f)
 	return BytesToULong(f:ReadByte(), f:ReadByte(), f:ReadByte(), f:ReadByte())
 end
 
+local function ReadString(f)
+	local tab = {}
+	local n = f:ReadByte()
+	local c = string.char(n)
+	while n ~= 0 do
+		table.insert(tab, c)
+
+		n = f:ReadByte()
+		c = string.char(n)
+	end
+
+	return table.concat(tab)
+end
+
 function luapack.BuildFileList(filepath)
 	LogMsg("Starting Lua file list build of '" .. filepath .. "'!")
 
@@ -277,20 +297,20 @@ function luapack.BuildFileList(filepath)
 		return
 	end
 
-	local header = f:Read(ReadULong(f))
-
 	local dir = CreateRootDirectory(f)
 
-	for offset, size, crc, path in header:gmatch("(....)(....)(....)([^%z]+)%z") do
-		offset = BytesToULong(string.byte(offset, 1, 4))
-		size = BytesToULong(string.byte(size, 1, 4))
-		crc = BytesToULong(string.byte(crc, 1, 4))
+	local fsize = f:Size()
+	local offset = 0
+	while offset < fsize do
+		local size = ReadULong(f)
+		local crc = ReadULong(f)
+		local path = ReadString(f)
 
-		local fw = dir:AddFile(path, offset, size)
-		local tcrc = tonumber(util.CRC(fw:GetContents()))
-		if tcrc ~= crc then
-			DebugMsg("CRC not matching", tcrc, crc, fw:GetFullPath())
-		end
+		dir:AddFile(path, f:Tell(), size, crc)
+
+		offset = offset + 4 + 4 + #path + 1 + size
+		
+		f:Seek(offset)
 	end
 
 	LogMsg("Lua file list building of '" .. filepath .. "' took " .. SysTime() - time .. " seconds!")
@@ -541,7 +561,7 @@ function luapack.LoadWeapon(obj)
 end
 
 function luapack.LoadWeapons()
-	local files, folders = weapons_dir:Get("*")
+	local files, folders = luapack.RootDirectory:Get("weapons/*")
 	for i = 1, #files do
 		luapack.LoadWeapon(files[i])
 	end
@@ -583,7 +603,7 @@ function luapack.LoadEntity(obj)
 end
 
 function luapack.LoadEntities()
-	local files, folders = entities_dir:Get("*")
+	local files, folders = luapack.RootDirectory:Get("entities/*")
 	for i = 1, #files do
 		luapack.LoadEntity(files[i])
 	end
@@ -619,7 +639,7 @@ function luapack.LoadEffect(obj)
 end
 
 function luapack.LoadEffects()
-	local files, folders = effects_dir:Get("*")
+	local files, folders = luapack.RootDirectory:Get("effects/*")
 	for i = 1, #files do
 		luapack.LoadEffect(files[i])
 	end
@@ -629,39 +649,8 @@ function luapack.LoadEffects()
 	end
 end
 
-local function MergeEntitiesFolders(path)
-	local files, folders = luapack.RootDirectory:Get(path .. "weapons/*")
-	for i = 1, #files do
-		table.insert(weapons_dir.__list, files[i])
-	end
-
-	for i = 1, #folders do
-		table.insert(weapons_dir.__list, folders[i])
-	end
-
-	files, folders = luapack.RootDirectory:Get(path .. "entities/*")
-	for i = 1, #files do
-		table.insert(entities_dir.__list, files[i])
-	end
-
-	for i = 1, #folders do
-		table.insert(entities_dir.__list, folders[i])
-	end
-
-	files, folders = luapack.RootDirectory:Get(path .. "effects/*")
-	for i = 1, #files do
-		table.insert(effects_dir.__list, files[i])
-	end
-
-	for i = 1, #folders do
-		table.insert(effects_dir.__list, folders[i])
-	end
-end
-
 gamemode.Register = function(gm, name, base)
 	LogMsg("Registering gamemode '" .. name .. "' with base '" .. base .. "'.")
-
-	MergeEntitiesFolders(name .. "/entities/")
 
 	local ret = luapack.gamemodeRegister(gm, name, base)
 
@@ -676,8 +665,6 @@ gamemode.Register = function(gm, name, base)
 end
 
 function scripted_ents.OnLoaded()
-	MergeEntitiesFolders("")
-
 	luapack.LoadWeapons()
 	luapack.LoadEntities()
 	luapack.LoadEffects()

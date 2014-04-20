@@ -72,7 +72,14 @@ function luapack.AddFile(filepath)
 		return true
 	end
 
+	for i = 1, #luapack.FileList do
+		if luapack.FileList[i] == filepath then
+			return true
+		end
+	end
+
 	table.insert(luapack.FileList, filepath)
+
 	return true
 end
 
@@ -80,8 +87,8 @@ hook.Add("AddOrUpdateCSLuaFile", "luapack addcsluafile detour", function(path, r
 	return (not reload and not luapack.Bypass and luapack.AddFile(path)) and true or nil
 end)
 
-local function ReadFile(filepath, pathlist)
-	local f = file.Open(filepath, "rb", pathlist)
+local function ReadFile(filepath)
+	local f = file.Open(filepath, "rb", "LUA")
 	if f then
 		local data = f:Read(f:Size()) or ""
 		f:Close()
@@ -91,7 +98,7 @@ local function ReadFile(filepath, pathlist)
 	end
 end
 
-local send = ReadFile("_send.txt", "LUA")
+local send = ReadFile("_send.txt")
 for line in send:gmatch("([^\r\n]+)\r?\n") do
 	if line:sub(1, 1) == "#" then
 		continue
@@ -109,6 +116,101 @@ local function StringToHex(str)
 	end
 
 	return table.concat(parts)
+end
+
+local gamemode_priority
+local function GetPriority(path1, path2)
+	if not gamemode_priority then
+		gamemode_priority = {}
+
+		local gm = GAMEMODE
+		while gm do
+			table.insert(gamemode_priority, gm.FolderName)
+			gm = gm.BaseClass
+		end
+	end
+
+	local gm1, rpath1, gm1p = path1:match("^([^/]+)/entities/(.+)$")
+	if not gm1 then
+		return 0
+	end
+
+	local gm2, rpath2, gm2p = path2:match("^([^/]+)/entities/(.+)$")
+	if not gm2 then
+		return 0
+	end
+
+	if rpath1 ~= rpath2 then
+		return 0
+	end
+
+	for i = 1, #gamemode_priority do
+		if not gm1p and gamemode_priority[i] == gm1 then
+			gm1p = i
+		end
+
+		if not gm2p and gamemode_priority[i] == gm2 then
+			gm2p = i
+		end
+
+		if gm1p and gm2p then
+			break
+		end
+	end
+
+	if not gm1p or not gm2p then
+		error("OY VEY, WE GOT A BAD GAMEMODE? " .. gm1 .. " - " .. gm2)
+	end
+
+	if gm1p > gm2p then
+		return 1
+	elseif gm1p < gm2p then
+		return -1
+	end
+
+	error("Gamemode 1 priority is the same as gamemode 2 priority? OY VEY! " .. gm1 .. " - " .. gm2 .. " - " .. rpath1 .. " - " .. rpath2)
+end
+
+local function CleanFileList(list)
+	local listsize = #list
+	local i = 1
+	while i <= listsize do
+		local k = i + 1
+		while k <= listsize do
+			if list[i] == list[k] then
+				print(i, k, list[i], list[k])
+			end
+
+			local pri = GetPriority(list[i], list[k])
+			if pri == 1 then
+				listsize = listsize - 1
+				table.remove(list, i)
+				i = i - 1
+				break
+			elseif pri == -1 then
+				listsize = listsize - 1
+				table.remove(list, k)
+			else
+				k = k + 1
+			end
+		end
+
+		i = i + 1
+	end
+end
+--Better file overriding. This work is done on the server which allows for smaller filepaths, less trash on the pack and less work on the client.
+local function CleanPath(path)
+	--[[local gm, rpath = path:match("^([^/]+)/gamemode/(.+)$")
+	if gm and rpath then
+		return rpath
+	end]]
+
+	rpath = path:match("^[^/]+/entities/(.+)$")
+	if rpath then
+		return rpath
+	end
+
+	return path
 end
 
 local function WriteULong(f, n)
@@ -140,20 +242,15 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 		error("Failed to create SHA-1 hasher object")
 	end
 
-	local headersize = 0
-	for i = 1, #luapack.FileList do
-		headersize = headersize + 4 + 4 + 4 + #luapack.FileList[i] + 1
-	end
+	CleanFileList(luapack.FileList)
 
-	WriteULong(f, headersize)
-
-	local offset = 4 + headersize
 	for i = 1, #luapack.FileList do
 		local filepath = luapack.FileList[i]
-
-		local data = ReadFile(filepath, "LUA")
+		local data = ReadFile(filepath)
 		local datalen = #data
 		local crc = tonumber(util.CRC(data))
+		filepath = CleanPath(filepath)
+
 		h:Update(data)
 
 		if datalen > 0 then
@@ -161,20 +258,14 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 			datalen = #data
 		end
 
-		WriteULong(f, offset)
 		WriteULong(f, datalen)
 		WriteULong(f, crc)
 		f:Write(filepath)
 		f:WriteByte(0)
 
 		if datalen > 0 then
-			local getback = f:Tell()
-			f:Seek(offset)
 			f:Write(data)
-			f:Seek(getback)
 		end
-
-		offset = offset + datalen
 	end
 
 	f:Close()
