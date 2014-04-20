@@ -543,7 +543,6 @@ function luapack.LoadMatproxy()
 	end
 end
 
-local weapons_dir = CreateRootDirectory()
 function luapack.LoadWeapon(obj)
 	local name = obj:IsDirectory() and obj:GetPath() or RemoveExtension(obj:GetPath())
 
@@ -589,7 +588,6 @@ function luapack.LoadWeapons()
 	end
 end
 
-local entities_dir = CreateRootDirectory()
 function luapack.LoadEntity(obj)
 	local name = obj:IsDirectory() and obj:GetPath() or RemoveExtension(obj:GetPath())
 
@@ -631,7 +629,6 @@ function luapack.LoadEntities()
 	end
 end
 
-local effects_dir = CreateRootDirectory()
 function luapack.LoadEffect(obj)
 	local name = obj:IsDirectory() and obj:GetPath() or RemoveExtension(obj:GetPath())
 
