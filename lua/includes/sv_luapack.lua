@@ -198,7 +198,7 @@ local function CleanFileList(list)
 		i = i + 1
 	end
 end
---Better file overriding. This work is done on the server which allows for smaller filepaths, less trash on the pack and less work on the client.
+
 local function CleanPath(path)
 	--[[local gm, rpath = path:match("^([^/]+)/gamemode/(.+)$")
 	if gm and rpath then
