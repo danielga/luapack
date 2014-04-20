@@ -407,7 +407,7 @@ function include(filepath)
 
 	local file = GetFileFromPathStack(filepath)
 	if file then
-		RunStringEx(file:GetContents(), file:GetFullPath())
+		CompileString(file:GetContents(), file:GetFullPath())()
 
 		AddTime(SysTime() - time)
 
@@ -486,6 +486,7 @@ include("_init.lua")
 ---------------------------------------------------------------------
 
 luapack.gamemodeRegister = luapack.gamemodeRegister or gamemode.Register
+luapack.weaponsOnLoaded = luapack.weaponsOnLoaded or weapons.OnLoaded
 luapack.scripted_entsOnLoaded = luapack.scripted_entsOnLoaded or scripted_ents.OnLoaded
 
 local function RemoveExtension(filename)
@@ -541,18 +542,18 @@ function luapack.LoadWeapon(obj)
 		local files = obj:Get("cl_init.lua", false)
 		local file = files[1]
 		if file then
-			RunStringEx(file:GetContents(), file:GetFullPath())
+			CompileString(file:GetContents(), file:GetFullPath())()
 		end
 
 		files = obj:Get("shared.lua", false)
 		file = files[1]
 		if file then
-			RunStringEx(file:GetContents(), file:GetFullPath())
+			CompileString(file:GetContents(), file:GetFullPath())()
 		end
 	else
 		SWEP.Folder = obj:GetParent():GetFullPath()
 
-		RunStringEx(obj:GetContents(), obj:GetFullPath())
+		CompileString(obj:GetContents(), obj:GetFullPath())()
 	end
 
 	weapons.Register(SWEP, name)
@@ -583,18 +584,18 @@ function luapack.LoadEntity(obj)
 		local files = obj:Get("cl_init.lua", false)
 		local file = files[1]
 		if file then
-			RunStringEx(file:GetContents(), file:GetFullPath())
+			CompileString(file:GetContents(), file:GetFullPath())()
 		end
 
 		files = obj:Get("shared.lua", false)
 		file = files[1]
 		if file then
-			RunStringEx(file:GetContents(), file:GetFullPath())
+			CompileString(file:GetContents(), file:GetFullPath())()
 		end
 	else
 		ENT.Folder = obj:GetParent():GetFullPath()
 
-		RunStringEx(obj:GetContents(), obj:GetFullPath())
+		CompileString(obj:GetContents(), obj:GetFullPath())()
 	end
 
 	scripted_ents.Register(ENT, name)
@@ -625,12 +626,12 @@ function luapack.LoadEffect(obj)
 		local files = obj:Get("init.lua", false)
 		local file = files[1]
 		if file then
-			RunStringEx(file:GetContents(), file:GetFullPath())
+			CompileString(file:GetContents(), file:GetFullPath())()
 		end
 	else
 		EFFECT.Folder = obj:GetParent():GetFullPath()
 
-		RunStringEx(obj:GetContents(), obj:GetFullPath())
+		CompileString(obj:GetContents(), obj:GetFullPath())()
 	end
 
 	effects.Register(EFFECT, name)
@@ -659,15 +660,22 @@ gamemode.Register = function(gm, name, base)
 		luapack.LoadPostProcess()
 		luapack.LoadVGUI()
 		luapack.LoadMatproxy()
+
+		-- these use a very simple system, no inheritance, no nothing
+		-- let's hope we can load them directly
+		-- load them after base just to be safe
+		luapack.LoadEffects()
 	end
 
 	return ret
 end
 
-function scripted_ents.OnLoaded()
+function weapons.OnLoaded()
 	luapack.LoadWeapons()
-	luapack.LoadEntities()
-	luapack.LoadEffects()
+	return luapack.weaponsOnLoaded()
+end
 
+function scripted_ents.OnLoaded()
+	luapack.LoadEntities()
 	return luapack.scripted_entsOnLoaded()
 end
