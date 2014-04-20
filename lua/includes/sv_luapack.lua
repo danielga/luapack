@@ -1,5 +1,3 @@
-AddCSLuaFile("_init.lua")
-
 if not file.IsDir("luapack", "DATA") then
 	file.CreateDir("luapack")
 end
@@ -113,6 +111,16 @@ local function StringToHex(str)
 	return table.concat(parts)
 end
 
+local function WriteULong(f, n)
+	f:WriteByte(bit.band(n, 255))
+	n = bit.rshift(n, 8)
+	f:WriteByte(bit.band(n, 255))
+	n = bit.rshift(n, 8)
+	f:WriteByte(bit.band(n, 255))
+	n = bit.rshift(n, 8)
+	f:WriteByte(bit.band(n, 255))
+end
+
 hook.Add("InitPostEntity", "luapack resource creation", function()
 	hook.Remove("InitPostEntity", "luapack resource creation")
 
@@ -134,10 +142,10 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	local headersize = 0
 	for i = 1, #luapack.FileList do
-		headersize = headersize + 4 + 4 + #luapack.FileList[i] + 1
+		headersize = headersize + 4 + 4 + 4 + #luapack.FileList[i] + 1
 	end
 
-	f:WriteLong(headersize)
+	WriteULong(f, headersize)
 
 	local offset = 4 + headersize
 	for i = 1, #luapack.FileList do
@@ -145,14 +153,17 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 		local data = ReadFile(filepath, "LUA")
 		local datalen = #data
+		local crc = tonumber(util.CRC(data))
+		h:Update(data)
+
 		if datalen > 0 then
-			h:Update(data)
 			data = util.Compress(data)
 			datalen = #data
 		end
 
-		f:WriteLong(offset)
-		f:WriteLong(datalen)
+		WriteULong(f, offset)
+		WriteULong(f, datalen)
+		WriteULong(f, crc)
 		f:Write(filepath)
 		f:WriteByte(0)
 
@@ -198,4 +209,5 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 	LogMsg("Pack building took " .. SysTime() - time .. " seconds!")
 end)
 
+AddCSLuaFile("_init.lua")
 include("_init.lua")

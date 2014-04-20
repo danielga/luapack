@@ -258,6 +258,14 @@ local function CreateRootDirectory(f)
 	return setmetatable({__file = f, __list = {}}, DIRECTORY)
 end
 
+local function BytesToULong(b1, b2, b3, b4)
+	return b4 * 16777216 + b3 * 65536 + b2 * 256 + b1
+end
+
+local function ReadULong(f)
+	return BytesToULong(f:ReadByte(), f:ReadByte(), f:ReadByte(), f:ReadByte())
+end
+
 function luapack.BuildFileList(filepath)
 	LogMsg("Starting Lua file list build of '" .. filepath .. "'!")
 
@@ -269,16 +277,20 @@ function luapack.BuildFileList(filepath)
 		return
 	end
 
-	local header = f:Read(f:ReadLong())
+	local header = f:Read(ReadULong(f))
 
 	local dir = CreateRootDirectory(f)
 
-	for offset, size, path in header:gmatch("(....)(....)([^%z]+)") do
-		local o1, o2, o3, o4 = string.byte(offset, 1, 4)
-		offset = o4 * 16777216 + o3 * 65536 + o2 * 256 + o1
-		local s1, s2, s3, s4 = string.byte(size, 1, 4)
-		size = s4 * 16777216 + s3 * 65536 + s2 * 256 + s1
-		dir:AddFile(path, offset, size)
+	for offset, size, crc, path in header:gmatch("(....)(....)(....)([^%z]+)%z") do
+		offset = BytesToULong(string.byte(offset, 1, 4))
+		size = BytesToULong(string.byte(size, 1, 4))
+		crc = BytesToULong(string.byte(crc, 1, 4))
+
+		local fw = dir:AddFile(path, offset, size)
+		local tcrc = tonumber(util.CRC(fw:GetContents()))
+		if tcrc ~= crc then
+			DebugMsg("CRC not matching", tcrc, crc, fw:GetFullPath())
+		end
 	end
 
 	LogMsg("Lua file list building of '" .. filepath .. "' took " .. SysTime() - time .. " seconds!")
@@ -330,7 +342,31 @@ function require(module)
 	local modulepath = "includes/modules/" .. module .. ".lua"
 	local files = luapack.RootDirectory:Get(modulepath)
 	if files[1] then
-		local ret = RunStringEx(files[1]:GetContents(), modulepath)
+		if package.loaded[module] then
+			DebugMsg("Module already loaded '" .. module .. "'")
+			return
+		end
+
+		local ret = CompileString(files[1]:GetContents(), modulepath)()
+
+		if not package.loaded[module] then
+			local pkg = {
+				_NAME = module,
+				_PACKAGE = "",
+				_luapack = true
+			}
+
+			pkg._M = pkg
+
+			local gmodule = _G[module]
+			if gmodule then
+				for k, v in pairs(gmodule) do
+					pkg[k] = v
+				end
+			end
+
+			package.loaded[module] = pkg
+		end
 
 		AddTime(SysTime() - time)
 
@@ -338,6 +374,7 @@ function require(module)
 	end
 
 	DebugMsg("Couldn't require Lua module from luapack, proceeding with normal require", module)
+
 	local ret = luapack.require(module)
 	
 	AddTime(SysTime() - time)
@@ -350,19 +387,18 @@ function include(filepath)
 
 	local file = GetFileFromPathStack(filepath)
 	if file then
-		local ret = RunStringEx(file:GetContents(), file:GetFullPath())
+		RunStringEx(file:GetContents(), file:GetFullPath())
 
 		AddTime(SysTime() - time)
 
-		return ret
+		return
 	end
 
 	DebugMsg("Couldn't include Lua file from luapack, proceeding with normal include", filepath)
-	local ret = luapack.include(filepath)
+
+	luapack.include(filepath)
 
 	AddTime(SysTime() - time)
-
-	return ret
 end
 
 function CompileFile(filepath)
@@ -370,7 +406,7 @@ function CompileFile(filepath)
 
 	local file = GetFileFromPathStack(filepath)
 	if file then
-		local ret = CompileString(file:GetContents(), file:GetFullPath(), false)
+		local ret = CompileString(file:GetContents(), file:GetFullPath())
 
 		AddTime(SysTime() - time)
 
@@ -378,6 +414,7 @@ function CompileFile(filepath)
 	end
 
 	DebugMsg("Couldn't CompileFile Lua file from luapack, proceeding with normal CompileFile", filepath)
+
 	local ret = luapack.CompileFile(filepath)
 
 	AddTime(SysTime() - time)
@@ -424,7 +461,7 @@ end
 
 ---------------------------------------------------------------------
 
-luapack.include("_init.lua")
+include("_init.lua")
 
 ---------------------------------------------------------------------
 
@@ -473,14 +510,14 @@ function luapack.LoadWeapon(obj)
 	local name = obj:IsDirectory() and obj:GetPath() or RemoveExtension(obj:GetPath())
 
 	SWEP = {
-		Primary = {},
-		Secondary = {},
 		Base = "weapon_base",
-		ClassName = name
+		Primary = {},
+		Secondary = {}
 	}
 
 	if obj:IsDirectory() then
 		SWEP.Folder = obj:GetFullPath()
+
 		local files = obj:Get("cl_init.lua", false)
 		local file = files[1]
 		if file then
@@ -494,6 +531,7 @@ function luapack.LoadWeapon(obj)
 		end
 	else
 		SWEP.Folder = obj:GetParent():GetFullPath()
+
 		RunStringEx(obj:GetContents(), obj:GetFullPath())
 	end
 
@@ -517,13 +555,11 @@ local entities_dir = CreateRootDirectory()
 function luapack.LoadEntity(obj)
 	local name = obj:IsDirectory() and obj:GetPath() or RemoveExtension(obj:GetPath())
 
-	ENT = {
-		Base = "base_entity",
-		Type = "anim",
-		ClassName = name
-	}
+	ENT = {}
 
 	if obj:IsDirectory() then
+		ENT.Folder = obj:GetFullPath()
+
 		local files = obj:Get("cl_init.lua", false)
 		local file = files[1]
 		if file then
@@ -536,6 +572,8 @@ function luapack.LoadEntity(obj)
 			RunStringEx(file:GetContents(), file:GetFullPath())
 		end
 	else
+		ENT.Folder = obj:GetParent():GetFullPath()
+
 		RunStringEx(obj:GetContents(), obj:GetFullPath())
 	end
 
@@ -562,12 +600,16 @@ function luapack.LoadEffect(obj)
 	EFFECT = {}
 
 	if obj:IsDirectory() then
+		EFFECT.Folder = obj:GetFullPath()
+
 		local files = obj:Get("init.lua", false)
 		local file = files[1]
 		if file then
 			RunStringEx(file:GetContents(), file:GetFullPath())
 		end
 	else
+		EFFECT.Folder = obj:GetParent():GetFullPath()
+
 		RunStringEx(obj:GetContents(), obj:GetFullPath())
 	end
 
