@@ -442,8 +442,19 @@ function CompileFile(filepath)
 	return ret
 end
 
+local sorting_functions = {
+	nameasc = function(a, b)
+		return a < b
+	end,
+	namedesc = function(a, b)
+		return a > b
+	end
+}
+
 function file.Find(filepath, filelist, sorting)
 	if filelist == "LUA" then
+		sorting = sorting or "nameasc"
+
 		local files, folders = luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath))
 		local simplefiles, simplefolders = luapack.fileFind(filepath, "LUA")
 
@@ -453,6 +464,12 @@ function file.Find(filepath, filelist, sorting)
 
 		for i = 1, #folders do
 			table.insert(simplefolders, folders[i]:GetPath())
+		end
+
+		local sort = sorting_functions[sorting]
+		if sort then
+			table.sort(simplefiles, sort)
+			table.sort(simplefolders, sort)
 		end
 
 		return simplefiles, simplefolders
