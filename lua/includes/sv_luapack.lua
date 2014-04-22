@@ -1,3 +1,5 @@
+AddCSLuaFile("cl_luapack.lua")
+
 if not file.IsDir("luapack", "DATA") then
 	file.CreateDir("luapack")
 end
@@ -7,12 +9,10 @@ function IsValid(object)
 	return object and object.IsValid and object:IsValid()
 end
 
-require("hook")
-require("addcs")
-require("crypt")
-require("luaiox")
-
 luapack = luapack or {Bypass = false, FileList = {}, FinishedAdding = false}
+
+require("luapack_internal")
+require("hook")
 
 local green = {r = 0, g = 255, b = 0, a = 255}
 local function LogMsg(...)
@@ -237,7 +237,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 		error("Failed to open '" .. luapacktemp .. "' for writing")
 	end
 
-	local h = crypt.sha1()
+	local h = luapack.SHA1()
 	if not h then
 		error("Failed to create SHA-1 hasher object")
 	end
@@ -273,27 +273,18 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 	luapack.CurrentHash = StringToHex(h:Final())
 
 	local currentpath = "luapack/" .. luapack.CurrentHash .. ".dat"
-	local fullcurrentpath = "data/" .. currentpath
 	if not file.Exists(currentpath, "DATA") then
-		io.rename("garrysmod/data/" .. luapacktemp, "garrysmod/" .. fullcurrentpath)
+		if not luapack.Rename(luapack.CurrentHash) then
+			DebugMsg("Pack file renaming not successful")
+		end
 	else
 		DebugMsg("Deleting obsolete temporary file")
 		file.Delete(luapacktemp)
 	end
 
-	resource.AddFile(fullcurrentpath)
+	resource.AddFile("data/" .. currentpath)
 
-	local path = debug.getinfo(1, "S").short_src:match("^(.*[/\\])[^/\\]-$")
-	if path then
-		local f = io.open("garrysmod/" .. path .. "cl_luapack.lua", "r+")
-		if f then
-			-- the size of the string is always the same as long as we keep using SHA-1, 62 bytes
-			f:write("local currenthash = \"" .. luapack.CurrentHash .. "\"")
-			f:close()
-		end
-	end
-
-	luapack.AddCSLuaFile("includes/cl_luapack.lua")
+	util.AddNetworkString("luapackfile_" .. luapack.CurrentHash)
 
 	luapack.FinishedAdding = true
 

@@ -1,7 +1,3 @@
-local currenthash = "0000000000000000000000000000000000000000"
-
----------------------------------------------------------------------
-
 local FILE = {}
 FILE.__index = FILE
 
@@ -228,6 +224,21 @@ end
 
 ---------------------------------------------------------------------
 
+-- Because I'm a rogue
+local currenthash
+for i = 1, 2047 do
+	local str = util.NetworkIDToString(i)
+	if str and str:sub(1, 12) == "luapackfile_" then
+		currenthash = str:sub(13)
+		break
+	end
+end
+
+if not currenthash then
+	error("unable to retrieve current file hash, critical luapack error")
+end
+-- Better than editing the clientside luapack file to add the hash...
+
 luapack = luapack or {
 	include = include,
 	CompileFile = CompileFile,
@@ -300,7 +311,7 @@ function luapack.BuildFileList(filepath)
 
 	local f = file.Open(filepath, "rb", "GAME")
 	if not f then
-		error("Failed to open current pack file for reading '" .. filepath .. "'")
+		error("failed to open current pack file for reading '" .. filepath .. "'")
 	end
 
 	local dir = CreateRootDirectory(f)
