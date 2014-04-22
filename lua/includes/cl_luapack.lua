@@ -36,6 +36,9 @@ function FILE:GetFullPath()
 	return table.concat(paths, "/")
 end
 
+local CRC_FAIL = -1
+local CRC_NOT_CHECKED = 0
+local CRC_SUCCESS = 1
 function FILE:GetContents()
 	local f = self.__file
 	f:Seek(self.__offset)
@@ -43,8 +46,11 @@ function FILE:GetContents()
 	if data then
 		data = util.Decompress(data)
 
-		local tcrc = tonumber(util.CRC(data))
-		if tcrc ~= self.__crc then
+		if self.__crc_checked == CRC_NOT_CHECKED then
+			self.__crc_checked = tonumber(util.CRC(data)) ~= self.__crc and CRC_FAIL or CRC_SUCCESS
+		end
+
+		if self.__crc_checked == CRC_FAIL then
 			error("CRC not matching for file '" .. self:GetFullPath() .. "'")
 		end
 	end
@@ -100,6 +106,7 @@ function DIRECTORY:AddFile(path, offset, size, crc)
 				__offset = offset,
 				__size = size,
 				__crc = crc,
+				__crc_checked = CRC_NOT_CHECKED,
 				__parent = self,
 				__file = self.__file
 			}, FILE)
@@ -294,7 +301,6 @@ function luapack.BuildFileList(filepath)
 	local f = file.Open(filepath, "rb", "GAME")
 	if not f then
 		error("Failed to open current pack file for reading '" .. filepath .. "'")
-		return
 	end
 
 	local dir = CreateRootDirectory(f)
