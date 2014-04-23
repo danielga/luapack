@@ -168,7 +168,7 @@ local function GetPriority(path1, path2)
 		return -1
 	end
 
-	error("Gamemode 1 priority is the same as gamemode 2 priority? OY VEY! " .. gm1 .. " - " .. gm2 .. " - " .. rpath1 .. " - " .. rpath2)
+	error("gamemode 1 priority is the same as gamemode 2 priority? OY VEY! " .. gm1 .. " - " .. gm2 .. " - " .. rpath1 .. " - " .. rpath2)
 end
 
 local function CleanFileList(list)
@@ -213,14 +213,12 @@ local function CleanPath(path)
 	return path
 end
 
+local band, brshift = bit.band, bit.rshift
 local function WriteULong(f, n)
-	f:WriteByte(bit.band(n, 255))
-	n = bit.rshift(n, 8)
-	f:WriteByte(bit.band(n, 255))
-	n = bit.rshift(n, 8)
-	f:WriteByte(bit.band(n, 255))
-	n = bit.rshift(n, 8)
-	f:WriteByte(bit.band(n, 255))
+	f:WriteByte(band(brshift(n, 24), 0xFF))
+	f:WriteByte(band(brshift(n, 16), 0xFF))
+	f:WriteByte(band(brshift(n, 8), 0xFF))
+	f:WriteByte(band(n, 0xFF))
 end
 
 hook.Add("InitPostEntity", "luapack resource creation", function()
@@ -234,12 +232,12 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	local f = file.Open(luapacktemp, "wb", "DATA")
 	if not f then
-		error("Failed to open '" .. luapacktemp .. "' for writing")
+		error("failed to open '" .. luapacktemp .. "' for writing")
 	end
 
 	local h = luapack.SHA1()
 	if not h then
-		error("Failed to create SHA-1 hasher object")
+		error("failed to create SHA-1 hasher object")
 	end
 
 	CleanFileList(luapack.FileList)

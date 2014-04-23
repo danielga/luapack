@@ -1,3 +1,40 @@
+local green = {r = 0, g = 255, b = 0, a = 255}
+local function LogMsg(...)
+	MsgC(green, "[LuaPack] ")
+	print(...)
+end
+
+local yellow = {r = 255, g = 255, b = 0, a = 255}
+local function DebugMsg(...)
+	MsgC(yellow, "[LuaPack] ")
+	print(...)
+end
+
+local time = SysTime()
+
+LogMsg("Searching for the current pack hash!")
+
+local currenthash
+for i = 1, 2047 do
+	local str = util.NetworkIDToString(i)
+	if not str then
+		break
+	end
+
+	if str:sub(1, 12) == "luapackfile_" then
+		currenthash = str:sub(13)
+		break
+	end
+end
+
+if not currenthash then
+	error("unable to retrieve current file hash, critical luapack error")
+end
+
+LogMsg("Found the current pack hash ('" .. currenthash .. "')! It took " .. SysTime() - time .. " seconds!")
+
+---------------------------------------------------------------------
+
 local FILE = {}
 FILE.__index = FILE
 
@@ -60,6 +97,7 @@ end
 
 FILE.AddDirectory = FILE.AddFile
 FILE.Get = FILE.AddFile
+FILE.GetSingle = FILE.AddFile
 FILE.GetList = FILE.AddFile
 FILE.GetIterator = FILE.AddFile
 FILE.Destroy = FILE.AddFile
@@ -193,6 +231,24 @@ function DIRECTORY:Get(path, pattern, files, dirs)
 	return files, dirs
 end
 
+function DIRECTORY:GetSingle(path, pattern)
+	pattern = pattern or false
+
+	local single, cur, rest = GetPathParts(path)
+
+	for elem in self:GetIterator() do
+		if (pattern and elem:GetPath():find(cur)) or elem:GetPath() == cur then
+			if not single then
+				if elem:IsDirectory() then
+					return elem:GetSingle(rest, pattern)
+				end
+			else
+				return elem
+			end
+		end
+	end
+end
+
 -- not recommended
 function DIRECTORY:GetList()
 	return self.__list
@@ -224,21 +280,6 @@ end
 
 ---------------------------------------------------------------------
 
--- Because I'm a rogue
-local currenthash
-for i = 1, 2047 do
-	local str = util.NetworkIDToString(i)
-	if str and str:sub(1, 12) == "luapackfile_" then
-		currenthash = str:sub(13)
-		break
-	end
-end
-
-if not currenthash then
-	error("unable to retrieve current file hash, critical luapack error")
-end
--- Better than editing the clientside luapack file to add the hash...
-
 luapack = luapack or {
 	include = include,
 	CompileFile = CompileFile,
@@ -249,18 +290,6 @@ luapack = luapack or {
 	FileList = {},
 	CurrentHash = currenthash
 }
-
-local green = {r = 0, g = 255, b = 0, a = 255}
-local function LogMsg(...)
-	MsgC(green, "[LuaPack] ")
-	print(...)
-end
-
-local yellow = {r = 255, g = 255, b = 0, a = 255}
-local function DebugMsg(...)
-	MsgC(yellow, "[LuaPack] ")
-	print(...)
-end
 
 function luapack.CanonicalizePath(path)
 	path = path:lower():gsub("\\", "/"):gsub("/+", "/")
@@ -278,16 +307,11 @@ function luapack.CanonicalizePath(path)
 	return path:match("lua/(.+)$") or (path:match("^gamemodes/(.+)$") or path)
 end
 
-local function CreateRootDirectory(f)
-	return setmetatable({__file = f, __list = {}}, DIRECTORY)
-end
-
-local function BytesToULong(b1, b2, b3, b4)
-	return b4 * 16777216 + b3 * 65536 + b2 * 256 + b1
-end
-
+local band, bor, blshift, brshift = bit.band, bit.bor, bit.lshift, bit.rshift
 local function ReadULong(f)
-	return BytesToULong(f:ReadByte(), f:ReadByte(), f:ReadByte(), f:ReadByte())
+	local b1, b2, b3, b4 = f:ReadByte(), f:ReadByte(), f:ReadByte(), f:ReadByte()
+	local n = band(bor(blshift(b4, 24), blshift(b3, 16), blshift(b2, 8), b1), 0x7FFFFFFF)
+	return brshift(b4, 7) == 1 and n + 0x80000000 or n
 end
 
 local function ReadString(f)
@@ -314,7 +338,7 @@ function luapack.BuildFileList(filepath)
 		error("failed to open current pack file for reading '" .. filepath .. "'")
 	end
 
-	local dir = CreateRootDirectory(f)
+	local dir = setmetatable({__file = f, __list = {}}, DIRECTORY)
 
 	local fsize = f:Size()
 	local offset = 0
@@ -348,18 +372,18 @@ local function GetFileFromPathStack(filepath)
 			path = path .. "/" .. filepath
 		end
 		path = luapack.CanonicalizePath(path)
-		local files = luapack.RootDirectory:Get(path, false)
-		if files[1] then
-			return files[1]
+		local obj = luapack.RootDirectory:GetSingle(path)
+		if obj and obj:IsFile() then
+			return obj
 		end
 
 		i = i + 1
 		dbg = debug.getinfo(i, "S")
 	end
 
-	local files = luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath), false)
-	if files[1] then
-		return files[1]
+	local obj = luapack.RootDirectory:GetSingle(luapack.CanonicalizePath(filepath))
+	if obj and obj:IsFile() then
+		return obj
 	end
 end
 
@@ -377,20 +401,20 @@ function require(module)
 	local time = SysTime()
 
 	local modulepath = "includes/modules/" .. module .. ".lua"
-	local files = luapack.RootDirectory:Get(modulepath)
-	if files[1] then
+	local obj = luapack.RootDirectory:GetSingle(modulepath)
+	if obj and obj:IsFile() then
 		if package.loaded[module] then
 			DebugMsg("Module already loaded '" .. module .. "'")
 			return
 		end
 
-		local ret = CompileString(files[1]:GetContents(), modulepath)()
+		local ret = CompileString(obj:GetContents(), modulepath)()
 
 		if not package.loaded[module] then
 			local pkg = {
 				_NAME = module,
 				_PACKAGE = "",
-				_luapack = true
+				_LUAPACK = true
 			}
 
 			pkg._M = pkg
@@ -473,7 +497,7 @@ function file.Find(filepath, filelist, sorting)
 		sorting = sorting or "nameasc"
 
 		local files, folders = luapack.RootDirectory:Get(luapack.CanonicalizePath(filepath))
-		local simplefiles, simplefolders = luapack.fileFind(filepath, "LUA")
+		local simplefiles, simplefolders = luapack.fileFind(filepath, filelist, sorting)
 
 		for i = 1, #files do
 			table.insert(simplefiles, files[i]:GetPath())
@@ -497,8 +521,7 @@ end
 
 function file.Exists(filepath, filelist)
 	if filelist == "LUA" then
-		local files, folders = file.Find(filepath, filelist)
-		return files[1] ~= nil or folders[1] ~= nil
+		return luapack.RootDirectory:GetSingle(luapack.CanonicalizePath(filepath)) ~= nil
 	else
 		return luapack.fileExists(filepath, filelist)
 	end
@@ -506,8 +529,8 @@ end
 
 function file.IsDir(filepath, filelist)
 	if filelist == "LUA" then
-		local _, folders = file.Find(filepath, filelist)
-		return folders[1] ~= nil
+		local obj = luapack.RootDirectory:GetSingle(luapack.CanonicalizePath(filepath))
+		return obj ~= nil and obj:IsDirectory()
 	else
 		return luapack.fileIsDir(filepath, filelist)
 	end
@@ -574,12 +597,11 @@ function luapack.LoadWeapon(obj)
 
 		local files = obj:Get("cl_init.lua", false)
 		local file = files[1]
-		if file then
-			CompileString(file:GetContents(), file:GetFullPath())()
+		if not file then
+			files = obj:Get("shared.lua", false)
+			file = files[1]
 		end
 
-		files = obj:Get("shared.lua", false)
-		file = files[1]
 		if file then
 			CompileString(file:GetContents(), file:GetFullPath())()
 		end
