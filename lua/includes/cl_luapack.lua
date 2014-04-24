@@ -78,17 +78,19 @@ function FILE:GetContents()
 	local data = f:Read(self.__size)
 	if data then
 		data = util.Decompress(data)
-
-		if self.__crc_checked == CRC_NOT_CHECKED then
-			self.__crc_checked = tonumber(util.CRC(data)) ~= self.__crc and CRC_FAIL or CRC_SUCCESS
-		end
-
-		if self.__crc_checked == CRC_FAIL then
-			error("CRC not matching for file '" .. self:GetFullPath() .. "'")
-		end
 	end
 
-	return data or ""
+	data = data or ""
+
+	if self.__crc_checked == CRC_NOT_CHECKED then
+		self.__crc_checked = tonumber(util.CRC(data)) ~= self.__crc and CRC_FAIL or CRC_SUCCESS
+	end
+
+	if self.__crc_checked == CRC_FAIL then
+		error("CRC not matching for file '" .. self:GetFullPath() .. "'")
+	end
+
+	return data
 end
 
 function FILE:AddFile(name)
@@ -133,8 +135,8 @@ end
 function DIRECTORY:AddFile(path, offset, size, crc)
 	local single, cur, rest = GetPathParts(path)
 	if single then
-		local files, dirs = self:Get(cur, false)
-		if not files[1] and not dirs[1] then
+		local obj = self:GetSingle(cur)
+		if not obj then
 			local file = setmetatable({
 				__path = cur,
 				__offset = offset,
@@ -148,23 +150,22 @@ function DIRECTORY:AddFile(path, offset, size, crc)
 			return file
 		end
 
-		return files[1]
+		return obj:IsFile() and obj or nil
 	else
-		local _, dirs = self:Get(cur, false)
-		local dir = dirs[1]
-		if not dir then
-			dir = self:AddDirectory(cur)
+		local obj = self:GetSingle(cur)
+		if not obj then
+			obj = self:AddDirectory(cur)
 		end
 
-		return dir:AddFile(rest, offset, size, crc)
+		return obj:IsDirectory() and obj:AddFile(rest, offset, size, crc) or nil
 	end
 end
 
 function DIRECTORY:AddDirectory(path)
 	local single, cur, rest = GetPathParts(path)
 	if single then
-		local files, dirs = self:Get(cur, false)
-		if not files[1] and not dirs[1] then
+		local obj = self:GetSingle(cur)
+		if not obj then
 			local dir = setmetatable({
 				__path = cur,
 				__parent = self,
@@ -175,15 +176,14 @@ function DIRECTORY:AddDirectory(path)
 			return dir
 		end
 
-		return dirs[1]
+		return obj:IsDirectory() and obj or nil
 	else
-		local _, dirs = self:Get(cur, false)
-		local dir = dirs[1]
-		if not dir then
-			dir = self:AddDirectory(cur)
+		local obj = self:GetSingle(cur)
+		if not obj then
+			obj = self:AddDirectory(cur)
 		end
 
-		return dir:AddDirectory(rest)
+		return obj:IsDirectory() and obj:AddDirectory(rest) or nil
 	end
 end
 
@@ -335,7 +335,7 @@ function luapack.BuildFileList(filepath)
 
 	local f = file.Open(filepath, "rb", "GAME")
 	if not f then
-		error("failed to open current pack file for reading '" .. filepath .. "'")
+		error("failed to open pack file '" .. filepath .. "' for reading")
 	end
 
 	local dir = setmetatable({__file = f, __list = {}}, DIRECTORY)
@@ -366,13 +366,13 @@ local function GetFileFromPathStack(filepath)
 	local dbg = debug.getinfo(i, "S")
 	while dbg do
 		local path = dbg.source:match("^@?(.*)[/\\][^/\\]-$") or dbg.source:match("^@?(.*)$")
-		if path == "" then
+		if #path == 0 then
 			path = filepath
 		else
 			path = path .. "/" .. filepath
 		end
-		path = luapack.CanonicalizePath(path)
-		local obj = luapack.RootDirectory:GetSingle(path)
+
+		local obj = luapack.RootDirectory:GetSingle(luapack.CanonicalizePath(path))
 		if obj and obj:IsFile() then
 			return obj
 		end
@@ -483,14 +483,9 @@ function CompileFile(filepath)
 	return ret
 end
 
-local sorting_functions = {
-	nameasc = function(a, b)
-		return a < b
-	end,
-	namedesc = function(a, b)
-		return a > b
-	end
-}
+local function namedesc(a, b)
+	return a > b
+end
 
 function file.Find(filepath, filelist, sorting)
 	if filelist == "LUA" then
@@ -507,10 +502,12 @@ function file.Find(filepath, filelist, sorting)
 			table.insert(simplefolders, folders[i]:GetPath())
 		end
 
-		local sort = sorting_functions[sorting]
-		if sort then
-			table.sort(simplefiles, sort)
-			table.sort(simplefolders, sort)
+		if sorting == "namedesc" then
+			table.sort(simplefiles, namedesc)
+			table.sort(simplefolders, namedesc)
+		else
+			table.sort(simplefiles)
+			table.sort(simplefolders)
 		end
 
 		return simplefiles, simplefolders
@@ -595,14 +592,12 @@ function luapack.LoadWeapon(obj)
 	if obj:IsDirectory() then
 		SWEP.Folder = obj:GetFullPath()
 
-		local files = obj:Get("cl_init.lua", false)
-		local file = files[1]
-		if not file then
-			files = obj:Get("shared.lua", false)
-			file = files[1]
+		local file = obj:GetSingle("cl_init.lua")
+		if not file or file:IsDirectory() then
+			file = obj:GetSingle("shared.lua")
 		end
 
-		if file then
+		if file and file:IsFile() then
 			CompileString(file:GetContents(), file:GetFullPath())()
 		end
 	else
@@ -635,15 +630,12 @@ function luapack.LoadEntity(obj)
 	if obj:IsDirectory() then
 		ENT.Folder = obj:GetFullPath()
 
-		local files = obj:Get("cl_init.lua", false)
-		local file = files[1]
-		if file then
-			CompileString(file:GetContents(), file:GetFullPath())()
+		local file = obj:GetSingle("cl_init.lua")
+		if not file or file:IsDirectory() then
+			file = obj:GetSingle("shared.lua")
 		end
 
-		files = obj:Get("shared.lua", false)
-		file = files[1]
-		if file then
+		if file and file:IsFile() then
 			CompileString(file:GetContents(), file:GetFullPath())()
 		end
 	else
@@ -676,9 +668,8 @@ function luapack.LoadEffect(obj)
 	if obj:IsDirectory() then
 		EFFECT.Folder = obj:GetFullPath()
 
-		local files = obj:Get("init.lua", false)
-		local file = files[1]
-		if file then
+		local file = obj:GetSingle("init.lua")
+		if file and file:IsFile() then
 			CompileString(file:GetContents(), file:GetFullPath())()
 		end
 	else
