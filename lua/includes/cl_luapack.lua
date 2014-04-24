@@ -1,37 +1,9 @@
-local green = {r = 0, g = 255, b = 0, a = 255}
-local function LogMsg(...)
-	MsgC(green, "[LuaPack] ")
-	print(...)
-end
-
-local yellow = {r = 255, g = 255, b = 0, a = 255}
-local function DebugMsg(...)
-	MsgC(yellow, "[LuaPack] ")
-	print(...)
-end
-
-local time = SysTime()
-
-LogMsg("Searching for the current pack hash!")
-
-local currenthash
-for i = 1, 2047 do
-	local str = util.NetworkIDToString(i)
-	if not str then
-		break
-	end
-
-	if str:sub(1, 12) == "luapackfile_" then
-		currenthash = str:sub(13)
-		break
-	end
-end
-
-if not currenthash then
+local currenthash = GetConVarString("luapack_hash")
+if not currenthash or #currenthash == 0 then
 	error("unable to retrieve current file hash, critical luapack error")
 end
 
-LogMsg("Found the current pack hash ('" .. currenthash .. "')! It took " .. SysTime() - time .. " seconds!")
+LogMsg("Found the current pack file hash ('" .. currenthash .. "')!")
 
 ---------------------------------------------------------------------
 
@@ -291,20 +263,16 @@ luapack = luapack or {
 	CurrentHash = currenthash
 }
 
-function luapack.CanonicalizePath(path)
-	path = path:lower():gsub("\\", "/"):gsub("/+", "/")
+local green = {r = 0, g = 255, b = 0, a = 255}
+local function LogMsg(...)
+	MsgC(green, "[LuaPack] ")
+	print(...)
+end
 
-	local t = {}
-	for str in path:gmatch("([^/]+)") do
-		if str == ".." then
-			table.remove(t)
-		elseif str ~= "." and str ~= "" then
-			table.insert(t, str)
-		end
-	end
-
-	path = table.concat(t, "/")
-	return path:match("lua/(.+)$") or (path:match("^gamemodes/(.+)$") or path)
+local yellow = {r = 255, g = 255, b = 0, a = 255}
+local function DebugMsg(...)
+	MsgC(yellow, "[LuaPack] ")
+	print(...)
 end
 
 local band, bor, blshift, brshift = bit.band, bit.bor, bit.lshift, bit.rshift
@@ -360,6 +328,22 @@ function luapack.BuildFileList(filepath)
 end
 
 luapack.RootDirectory = luapack.BuildFileList("download/data/luapack/" .. luapack.CurrentHash .. ".dat")
+
+function luapack.CanonicalizePath(path)
+	path = path:lower():gsub("\\", "/"):gsub("/+", "/")
+
+	local t = {}
+	for str in path:gmatch("([^/]+)") do
+		if str == ".." then
+			table.remove(t)
+		elseif str ~= "." and str ~= "" then
+			table.insert(t, str)
+		end
+	end
+
+	path = table.concat(t, "/")
+	return path:match("lua/(.+)$") or (path:match("^gamemodes/(.+)$") or path)
+end
 
 local function GetFileFromPathStack(filepath)
 	local i = 3

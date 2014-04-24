@@ -4,12 +4,18 @@ if not file.IsDir("luapack", "DATA") then
 	file.CreateDir("luapack")
 end
 
+CreateConVar("luapack_hash", "", FCVAR_REPLICATED, "Hash of the current pack file")
+
 -- for the hook module, no need to include util.lua and all the trash it brings
 function IsValid(object)
 	return object and object.IsValid and object:IsValid()
 end
 
-luapack = luapack or {Bypass = false, FileList = {}, FinishedAdding = false}
+luapack = luapack or {
+	Bypass = false,
+	FileList = {},
+	FinishedAdding = false
+}
 
 require("luapack_internal")
 require("hook")
@@ -282,7 +288,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	resource.AddFile("data/" .. currentpath)
 
-	util.AddNetworkString("luapackfile_" .. luapack.CurrentHash)
+	game.ConsoleCommand("luapack_hash " .. luapack.CurrentHash .. "\n")
 
 	luapack.FinishedAdding = true
 
