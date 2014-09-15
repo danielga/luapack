@@ -1,4 +1,4 @@
-AddCSLuaFile("cl_luapack.lua")
+AddCSLuaFile("cl_core.lua")
 
 if not file.IsDir("luapack", "DATA") then
 	file.CreateDir("luapack")
