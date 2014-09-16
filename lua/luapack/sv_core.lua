@@ -1,52 +1,29 @@
+AddCSLuaFile("sh_core.lua")
 AddCSLuaFile("cl_core.lua")
+AddCSLuaFile("cl_file.lua")
+AddCSLuaFile("cl_directory.lua")
+AddCSLuaFile("cl_entities.lua")
+AddCSLuaFile("_init.lua")
 
 if not file.IsDir("luapack", "DATA") then
 	file.CreateDir("luapack")
 end
 
-CreateConVar("luapack_hash", "", FCVAR_REPLICATED, "Hash of the current pack file")
+include("sh_core.lua")
+
+luapack.Bypass = false
+luapack.FileList = {}
+luapack.FinishedAdding = false
+luapack.ConVar = CreateConVar("luapack_hash", "", FCVAR_REPLICATED, "Hash of the current pack file")
+
+require("luapack_internal")
 
 -- for the hook module, no need to include util.lua and all the trash it brings
 function IsValid(object)
 	return object and object.IsValid and object:IsValid()
 end
 
-luapack = luapack or {
-	Bypass = false,
-	FileList = {},
-	FinishedAdding = false
-}
-
-require("luapack_internal")
 require("hook")
-
-local green = {r = 0, g = 255, b = 0, a = 255}
-local function LogMsg(...)
-	MsgC(green, "[LuaPack] ")
-	print(...)
-end
-
-local yellow = {r = 255, g = 255, b = 0, a = 255}
-local function DebugMsg(...)
-	MsgC(yellow, "[LuaPack] ")
-	print(...)
-end
-
-function luapack.CanonicalizePath(path)
-	path = path:lower():gsub("\\", "/"):gsub("/+", "/")
-
-	local t = {}
-	for str in path:gmatch("([^/]+)") do
-		if str == ".." then
-			table.remove(t)
-		elseif str ~= "." and str ~= "" then
-			table.insert(t, str)
-		end
-	end
-
-	path = table.concat(t, "/")
-	return path:match("lua/(.+)$") or (path:match("^gamemodes/(.+)$") or path)
-end
 
 function luapack.AddCSLuaFile(path)
 	luapack.Bypass = true
@@ -62,18 +39,18 @@ end
 
 function luapack.AddFile(filepath)
 	if luapack.FinishedAdding then
-		DebugMsg("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
+		luapack.DebugMsg("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
 		return false
 	end
 
 	filepath = luapack.CanonicalizePath(filepath)
 	if not file.Exists(filepath, "LUA") then
-		DebugMsg("File doesn't exist (unable to add it to file list) '" .. filepath .. "'.")
+		luapack.DebugMsg("File doesn't exist (unable to add it to file list) '" .. filepath .. "'.")
 		return false
 	end
 
 	if luapack.IsBlacklistedFile(filepath) then
-		DebugMsg("Adding file through normal AddCSLuaFile '" .. filepath .. "'.")
+		luapack.DebugMsg("Adding file through normal AddCSLuaFile '" .. filepath .. "'.")
 		luapack.AddCSLuaFile(filepath)
 		return true
 	end
@@ -106,11 +83,9 @@ end
 
 local send = ReadFile("_send.txt")
 for line in send:gmatch("([^\r\n]+)\r?\n") do
-	if line:sub(1, 1) == "#" then
-		continue
+	if line:sub(1, 1) ~= "#" then
+		luapack.AddFile(line)
 	end
-
-	luapack.AddFile(line)
 end
 
 local function StringToHex(str)
@@ -211,7 +186,7 @@ local function CleanPath(path)
 		return rpath
 	end]]
 
-	rpath = path:match("^[^/]+/entities/(.+)$")
+	local rpath = path:match("^[^/]+/entities/(.+)$")
 	if rpath then
 		return rpath
 	end
@@ -230,7 +205,7 @@ end
 hook.Add("InitPostEntity", "luapack resource creation", function()
 	hook.Remove("InitPostEntity", "luapack resource creation")
 
-	LogMsg("Building pack...")
+	luapack.LogMsg("Building pack...")
 	
 	local time = SysTime()
 
@@ -279,10 +254,10 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 	local currentpath = "luapack/" .. luapack.CurrentHash .. ".dat"
 	if not file.Exists(currentpath, "DATA") then
 		if not luapack.Rename(luapack.CurrentHash) then
-			DebugMsg("Pack file renaming not successful")
+			luapack.DebugMsg("Pack file renaming not successful")
 		end
 	else
-		DebugMsg("Deleting obsolete temporary file")
+		luapack.DebugMsg("Deleting obsolete temporary file")
 		file.Delete(luapacktemp)
 	end
 
@@ -292,8 +267,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	luapack.FinishedAdding = true
 
-	LogMsg("Pack building took " .. SysTime() - time .. " seconds!")
+	luapack.LogMsg("Pack building took " .. SysTime() - time .. " seconds!")
 end)
 
-AddCSLuaFile("_init.lua")
 include("_init.lua")
