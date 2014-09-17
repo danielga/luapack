@@ -3,7 +3,7 @@ AddCSLuaFile("cl_core.lua")
 AddCSLuaFile("cl_file.lua")
 AddCSLuaFile("cl_directory.lua")
 AddCSLuaFile("cl_entities.lua")
-AddCSLuaFile("_init.lua")
+AddCSLuaFile("includes/_init.lua")
 
 if not file.IsDir("luapack", "DATA") then
 	file.CreateDir("luapack")
@@ -270,4 +270,4 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 	luapack.LogMsg("Pack building took " .. SysTime() - time .. " seconds!")
 end)
 
-include("_init.lua")
+include("includes/_init.lua")

@@ -1,5 +1,6 @@
-local DIRECTORY = {}
-DIRECTORY.__index = DIRECTORY
+luapack.DIRECTORY = {__index = {}}
+
+local DIRECTORY = luapack.DIRECTORY.__index
 
 function DIRECTORY:IsFile()
 	return false
@@ -186,5 +187,3 @@ function DIRECTORY:Destroy()
 	self.__file = nil
 	self.__list = {}
 end
-
-luapack.DIRECTORY = DIRECTORY

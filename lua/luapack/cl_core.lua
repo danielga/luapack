@@ -7,13 +7,7 @@ include("sh_core.lua")
 
 luapack.LogMsg("Found the current pack file hash ('" .. currenthash .. "')!")
 
-luapack.include = include,
-luapack.CompileFile = CompileFile,
-luapack.require = require,
-luapack.fileFind = file.Find,
-luapack.fileExists = file.Exists,
-luapack.fileIsDir = file.IsDir,
-luapack.FileList = {},
+luapack.FileList = {}
 luapack.CurrentHash = currenthash
 
 include("cl_file.lua")
@@ -84,5 +78,5 @@ function luapack.GetTimeSpentLoading()
 end
 
 include("cl_overrides.lua")
-include("_init.lua")
+include("includes/_init.lua")
 include("cl_entities.lua")

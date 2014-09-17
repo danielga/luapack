@@ -1,5 +1,6 @@
-local FILE = {}
-FILE.__index = FILE
+luapack.FILE = {__index = {}}
+
+local FILE = luapack.FILE.__index
 
 function FILE:IsFile()
 	return true
@@ -66,5 +67,3 @@ FILE.GetSingle = FILE.AddFile
 FILE.GetList = FILE.AddFile
 FILE.GetIterator = FILE.AddFile
 FILE.Destroy = FILE.AddFile
-
-luapack.FILE = FILE

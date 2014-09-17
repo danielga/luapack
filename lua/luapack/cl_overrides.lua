@@ -1,3 +1,10 @@
+luapack.include = include
+luapack.CompileFile = CompileFile
+luapack.require = require
+luapack.fileFind = file.Find
+luapack.fileExists = file.Exists
+luapack.fileIsDir = file.IsDir
+
 function require(module)
 	local time = SysTime()
 
