@@ -1,6 +1,11 @@
-luapack.FILE = {__index = {}}
+luapack.FILE = {}
+luapack.FILE.__index = luapack.FILE
 
-local FILE = luapack.FILE.__index
+local FILE = luapack.FILE
+
+function FILE:__tostring()
+	return self:GetFullPath()
+end
 
 function FILE:IsFile()
 	return true

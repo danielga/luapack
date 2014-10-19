@@ -1,6 +1,11 @@
-luapack.DIRECTORY = {__index = {}}
+luapack.DIRECTORY = {}
+luapack.DIRECTORY.__index = luapack.DIRECTORY
 
-local DIRECTORY = luapack.DIRECTORY.__index
+local DIRECTORY = luapack.DIRECTORY
+
+function DIRECTORY:__tostring()
+	return self:GetFullPath()
+end
 
 function DIRECTORY:IsFile()
 	return false
@@ -52,10 +57,10 @@ function DIRECTORY:AddFile(path, offset, size, crc)
 				__offset = offset,
 				__size = size,
 				__crc = crc,
-				__crc_checked = CRC_NOT_CHECKED,
+				__crc_checked = 0, -- CRC_NOT_CHECKED
 				__parent = self,
 				__file = self.__file
-			}, FILE)
+			}, luapack.FILE)
 			table.insert(self:GetList(), file)
 			return file
 		end
@@ -81,7 +86,7 @@ function DIRECTORY:AddDirectory(path)
 				__parent = self,
 				__file = self.__file,
 				__list = {}
-			}, DIRECTORY)
+			}, luapack.DIRECTORY)
 			table.insert(self:GetList(), dir)
 			return dir
 		end

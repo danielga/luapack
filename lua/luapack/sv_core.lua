@@ -2,6 +2,7 @@ AddCSLuaFile("sh_core.lua")
 AddCSLuaFile("cl_core.lua")
 AddCSLuaFile("cl_file.lua")
 AddCSLuaFile("cl_directory.lua")
+AddCSLuaFile("cl_overrides.lua")
 AddCSLuaFile("cl_entities.lua")
 AddCSLuaFile("includes/_init.lua")
 
@@ -14,7 +15,6 @@ include("sh_core.lua")
 luapack.Bypass = false
 luapack.FileList = {}
 luapack.FinishedAdding = false
-luapack.ConVar = CreateConVar("luapack_hash", "", FCVAR_REPLICATED, "Hash of the current pack file")
 
 require("luapack_internal")
 
@@ -196,7 +196,7 @@ end
 
 local band, brshift = bit.band, bit.rshift
 local function WriteULong(f, n)
-	f:WriteByte(band(brshift(n, 24), 0xFF))
+	f:WriteByte(brshift(n, 24))
 	f:WriteByte(band(brshift(n, 16), 0xFF))
 	f:WriteByte(band(brshift(n, 8), 0xFF))
 	f:WriteByte(band(n, 0xFF))
@@ -253,7 +253,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	local currentpath = "luapack/" .. luapack.CurrentHash .. ".dat"
 	if not file.Exists(currentpath, "DATA") then
-		if not luapack.Rename(luapack.CurrentHash) then
+		if not luapack.Rename("data/" .. luapacktemp, "data/" .. currentpath) then
 			luapack.DebugMsg("Pack file renaming not successful")
 		end
 	else
@@ -263,7 +263,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	resource.AddFile("data/" .. currentpath)
 
-	game.ConsoleCommand("luapack_hash " .. luapack.CurrentHash .. "\n")
+    util.AddNetworkString("luapackhash_" .. luapack.CurrentHash)
 
 	luapack.FinishedAdding = true
 

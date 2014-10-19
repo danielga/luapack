@@ -1,6 +1,14 @@
-local currenthash = GetConVarString("luapack_hash")
-if not currenthash or #currenthash == 0 then
-	error("unable to retrieve current file hash, critical luapack error")
+local currenthash = nil
+for i = 1, 2047 do
+    local str = util.NetworkIDToString(i)
+    if str and str:sub(1, 12) == "luapackhash_" then
+        currenthash = str:sub(13)
+        break
+    end
+end
+
+if not currenthash then
+    error("unable to retrieve current file hash, critical luapack error")
 end
 
 include("sh_core.lua")
@@ -13,22 +21,17 @@ luapack.CurrentHash = currenthash
 include("cl_file.lua")
 include("cl_directory.lua")
 
-local band, bor, blshift, brshift = bit.band, bit.bor, bit.lshift, bit.rshift
+local blshift = bit.lshift
 local function ReadULong(f)
-	local b1, b2, b3, b4 = f:ReadByte(), f:ReadByte(), f:ReadByte(), f:ReadByte()
-	local n = band(bor(blshift(b4, 24), blshift(b3, 16), blshift(b2, 8), b1), 0x7FFFFFFF)
-	return brshift(b4, 7) == 1 and n + 0x80000000 or n
+	return f:ReadByte() * 16777216 + blshift(f:ReadByte(), 16) + blshift(f:ReadByte(), 8) + f:ReadByte()
 end
 
 local function ReadString(f)
 	local tab = {}
 	local n = f:ReadByte()
-	local c = string.char(n)
 	while n ~= 0 do
-		table.insert(tab, c)
-
+		table.insert(tab, string.char(n))
 		n = f:ReadByte()
-		c = string.char(n)
 	end
 
 	return table.concat(tab)
@@ -44,7 +47,7 @@ function luapack.BuildFileList(filepath)
 		error("failed to open pack file '" .. filepath .. "' for reading")
 	end
 
-	local dir = setmetatable({__file = f, __list = {}}, DIRECTORY)
+	local dir = setmetatable({__file = f, __list = {}}, luapack.DIRECTORY)
 
 	local fsize = f:Size()
 	local offset = 0
