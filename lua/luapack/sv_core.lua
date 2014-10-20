@@ -99,7 +99,7 @@ local function StringToHex(str)
 	return table.concat(parts)
 end
 
-local gamemode_priority
+local gamemode_priority = nil
 local function GetPriority(path1, path2)
 	if not gamemode_priority then
 		gamemode_priority = {}
@@ -194,12 +194,14 @@ local function CleanPath(path)
 	return path
 end
 
-local band, brshift = bit.band, bit.rshift
+local band, brshift, tochar = bit.band, bit.rshift, string.char
 local function WriteULong(f, n)
-	f:WriteByte(brshift(n, 24))
-	f:WriteByte(band(brshift(n, 16), 0xFF))
-	f:WriteByte(band(brshift(n, 8), 0xFF))
-	f:WriteByte(band(n, 0xFF))
+	f:Write(tochar(
+		brshift(n, 24),
+		band(brshift(n, 16), 0xFF),
+		band(brshift(n, 8), 0xFF),
+		band(n, 0xFF)
+	))
 end
 
 hook.Add("InitPostEntity", "luapack resource creation", function()
@@ -239,8 +241,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 		WriteULong(f, datalen)
 		WriteULong(f, crc)
-		f:Write(filepath)
-		f:WriteByte(0)
+		f:Write(filepath .. "\0")
 
 		if datalen > 0 then
 			f:Write(data)

@@ -21,20 +21,41 @@ luapack.CurrentHash = currenthash
 include("cl_file.lua")
 include("cl_directory.lua")
 
-local blshift = bit.lshift
+local band, blshift = bit.band, bit.lshift
 local function ReadULong(f)
-	return f:ReadByte() * 16777216 + blshift(f:ReadByte(), 16) + blshift(f:ReadByte(), 8) + f:ReadByte()
+	if f:Tell() + 4 > f:Size() then
+		return
+	end
+
+	local b1, b2, b3, b4 = f:Read(4):byte(1, 4)
+	local res = blshift(band(b1, 0x7F), 24) + blshift(b2, 16) + blshift(b3, 8) + b4
+	if band(b1, 0x80) ~= 0 then
+		res = res + 0x80000000
+	end
+
+	return res
 end
 
 local function ReadString(f)
-	local tab = {}
-	local n = f:ReadByte()
-	while n ~= 0 do
-		table.insert(tab, string.char(n))
-		n = f:ReadByte()
+	local data = {}
+	local tell = f:Tell()
+	local text = f:Read(128)
+	local offset = nil
+	while text do
+		offset = text:find("\0")
+		if offset then
+			table.insert(data, text:sub(1, offset - 1))
+			break
+		end
+
+		table.insert(data, text)
+
+		text = f:Read(128)
 	end
 
-	return table.concat(tab)
+	local ret = table.concat(data)
+	f:Seek(tell + #ret + 1)
+	return ret
 end
 
 function luapack.BuildFileList(filepath)
