@@ -18,6 +18,14 @@ luapack.FinishedAdding = false
 
 require("luapack_internal")
 
+if file.Exists("lua/includes/init.lua", "MOD") and not luapack.Rename("lua/includes/init.lua", "lua/includes/_init.lua") then
+	luapack.DebugMsg("Failed to rename init.lua to _init.lua (maybe 'lua/includes/_init.lua' already exists?)")
+end
+
+if file.Exists("lua/send.txt", "MOD") and not luapack.Rename("lua/send.txt", "lua/_send.txt") then
+	luapack.DebugMsg("Failed to rename send.txt to _send.txt (maybe 'lua/_send.txt' already exists?)")
+end
+
 -- for the hook module, no need to include util.lua and all the trash it brings
 function IsValid(object)
 	return object and object.IsValid and object:IsValid()
