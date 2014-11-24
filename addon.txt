@@ -1,0 +1,9 @@
+"AddonInfo"
+{
+        "name"        "LuaPack"
+        "version"     "0.1"
+        "author_name" "MetaMan"
+        "author_url"  "http://danielga.bitbucket.org/luapack"
+        "info"        "An addon that attempts to speed up Lua files downloading by compressing and packing them."
+        "override"    "0"
+}
