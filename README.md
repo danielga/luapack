@@ -1,4 +1,5 @@
-# LuaPack #
+LuaPack
+=======
 
 A Garry's Mod addon that attempts to speed up Lua files downloading by compressing and packing them.
 
