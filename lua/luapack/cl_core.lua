@@ -15,7 +15,6 @@ include("sh_core.lua")
 
 luapack.LogMsg("Found the current pack file hash ('" .. currenthash .. "')!")
 
-luapack.FileList = {}
 luapack.CurrentHash = currenthash
 
 include("cl_file.lua")

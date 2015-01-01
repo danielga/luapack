@@ -12,9 +12,9 @@ end
 
 include("sh_core.lua")
 
-luapack.Bypass = false
-luapack.FileList = {}
-luapack.FinishedAdding = false
+luapack.Bypass = luapack.Bypass or false
+luapack.FileList = luapack.FileList or {}
+luapack.FinishedAdding = luapack.FinishedAdding or false
 
 require("luapack_internal")
 
@@ -59,8 +59,7 @@ function luapack.AddFile(filepath)
 
 	if luapack.IsBlacklistedFile(filepath) then
 		luapack.DebugMsg("Adding file through normal AddCSLuaFile '" .. filepath .. "'.")
-		luapack.AddCSLuaFile(filepath)
-		return true
+		return false
 	end
 
 	for i = 1, #luapack.FileList do

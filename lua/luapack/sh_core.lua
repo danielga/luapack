@@ -1,4 +1,4 @@
-luapack = {}
+luapack = luapack or {}
 
 local green = {r = 0, g = 255, b = 0, a = 255}
 function luapack.LogMsg(...)

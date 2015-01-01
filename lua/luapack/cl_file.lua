@@ -1,7 +1,7 @@
 luapack.FILE = {}
-luapack.FILE.__index = luapack.FILE
 
 local FILE = luapack.FILE
+FILE.__index = FILE
 
 function FILE:__tostring()
 	return self:GetFullPath()

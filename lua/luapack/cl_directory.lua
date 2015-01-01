@@ -1,7 +1,7 @@
 luapack.DIRECTORY = {}
-luapack.DIRECTORY.__index = luapack.DIRECTORY
 
 local DIRECTORY = luapack.DIRECTORY
+DIRECTORY.__index = DIRECTORY
 
 function DIRECTORY:__tostring()
 	return self:GetFullPath()

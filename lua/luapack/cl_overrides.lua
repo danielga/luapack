@@ -1,9 +1,9 @@
-luapack.include = include
-luapack.CompileFile = CompileFile
-luapack.require = require
-luapack.fileFind = file.Find
-luapack.fileExists = file.Exists
-luapack.fileIsDir = file.IsDir
+luapack.include = luapack.include or include
+luapack.CompileFile = luapack.CompileFile or CompileFile
+luapack.require = luapack.require or require
+luapack.fileFind = luapack.fileFind or file.Find
+luapack.fileExists = luapack.fileExists or file.Exists
+luapack.fileIsDir = luapack.fileIsDir or file.IsDir
 
 function require(module)
 	local time = SysTime()
