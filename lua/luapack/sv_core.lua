@@ -4,7 +4,6 @@ AddCSLuaFile("cl_file.lua")
 AddCSLuaFile("cl_directory.lua")
 AddCSLuaFile("cl_overrides.lua")
 AddCSLuaFile("cl_entities.lua")
-AddCSLuaFile("includes/_init.lua")
 
 if not file.IsDir("luapack", "DATA") then
 	file.CreateDir("luapack")
@@ -16,16 +15,6 @@ luapack.Bypass = luapack.Bypass or false
 luapack.FileList = luapack.FileList or {}
 luapack.FinishedAdding = luapack.FinishedAdding or false
 
-require("luapack_internal")
-
-if file.Exists("lua/includes/init.lua", "MOD") and not luapack.Rename("lua/includes/init.lua", "lua/includes/_init.lua") then
-	luapack.DebugMsg("Failed to rename init.lua to _init.lua (maybe 'lua/includes/_init.lua' already exists?)")
-end
-
-if file.Exists("lua/send.txt", "MOD") and not luapack.Rename("lua/send.txt", "lua/_send.txt") then
-	luapack.DebugMsg("Failed to rename send.txt to _send.txt (maybe 'lua/_send.txt' already exists?)")
-end
-
 -- for the hook module, no need to include util.lua and all the trash it brings
 function IsValid(object)
 	return object and object.IsValid and object:IsValid()
@@ -33,11 +22,23 @@ end
 
 require("hook")
 
+require("luapack_internal")
+
+if file.Exists("lua/includes/init.lua", "MOD") and not luapack.Rename("includes/init.lua", "includes/_init.lua", "LUA") then
+	luapack.DebugMsg("Failed to rename init.lua to _init.lua (maybe 'lua/includes/_init.lua' already exists?)")
+end
+
+if file.Exists("lua/send.txt", "MOD") and not luapack.Rename("send.txt", "_send.txt", "LUA") then
+	luapack.DebugMsg("Failed to rename send.txt to _send.txt (maybe 'lua/_send.txt' already exists?)")
+end
+
 function luapack.AddCSLuaFile(path)
 	luapack.Bypass = true
 	AddCSLuaFile(path)
 	luapack.Bypass = false
 end
+
+luapack.AddCSLuaFile("includes/_init.lua")
 
 function luapack.IsBlacklistedFile(filepath)
 	return	filepath == "derma/init.lua" or
@@ -84,7 +85,7 @@ local function ReadFile(filepath)
 		f:Close()
 		return data
 	else
-		error("ReadFile failed '" .. filepath .. "' - '" .. pathlist .. "'")
+		error("ReadFile failed '" .. filepath .. "'")
 	end
 end
 
@@ -261,7 +262,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	local currentpath = "luapack/" .. luapack.CurrentHash .. ".dat"
 	if not file.Exists(currentpath, "DATA") then
-		if not luapack.Rename("data/" .. luapacktemp, "data/" .. currentpath) then
+		if not luapack.Rename(luapacktemp, currentpath, "DATA") then
 			luapack.DebugMsg("Pack file renaming not successful")
 		end
 	else
