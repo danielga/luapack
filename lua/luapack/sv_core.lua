@@ -23,6 +23,7 @@ end
 require("hook")
 
 require("luapack_internal")
+require("crypt")
 
 if file.Exists("lua/includes/init.lua", "MOD") and not luapack.Rename("includes/init.lua", "includes/_init.lua", "LUA") then
 	luapack.DebugMsg("Failed to rename init.lua to _init.lua (maybe 'lua/includes/_init.lua' already exists?)")
@@ -109,7 +110,7 @@ end
 
 local gamemode_priority = nil
 local function GetPriority(path1, path2)
-	if not gamemode_priority then
+	if gamemode_priority == nil then
 		gamemode_priority = {}
 
 		local gm = GAMEMODE
@@ -120,12 +121,12 @@ local function GetPriority(path1, path2)
 	end
 
 	local gm1, rpath1, gm1p = path1:match("^([^/]+)/entities/(.+)$")
-	if not gm1 then
+	if gm1 == nil then
 		return 0
 	end
 
 	local gm2, rpath2, gm2p = path2:match("^([^/]+)/entities/(.+)$")
-	if not gm2 then
+	if gm2 == nil then
 		return 0
 	end
 
@@ -134,20 +135,20 @@ local function GetPriority(path1, path2)
 	end
 
 	for i = 1, #gamemode_priority do
-		if not gm1p and gamemode_priority[i] == gm1 then
+		if gm1p == nil and gamemode_priority[i] == gm1 then
 			gm1p = i
 		end
 
-		if not gm2p and gamemode_priority[i] == gm2 then
+		if gm2p == nil and gamemode_priority[i] == gm2 then
 			gm2p = i
 		end
 
-		if gm1p and gm2p then
+		if gm1p ~= nil and gm2p ~= nil then
 			break
 		end
 	end
 
-	if not gm1p or not gm2p then
+	if gm1p == nil or gm2p == nil then
 		error("OY VEY, WE GOT A BAD GAMEMODE? " .. gm1 .. " - " .. gm2)
 	end
 
@@ -222,12 +223,12 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 	local luapacktemp = "luapack/temp.dat"
 
 	local f = file.Open(luapacktemp, "wb", "DATA")
-	if not f then
+	if f == nil then
 		error("failed to open '" .. luapacktemp .. "' for writing")
 	end
 
-	local h = luapack.SHA1()
-	if not h then
+	local h = crypt.SHA1()
+	if h == nil then
 		error("failed to create SHA-1 hasher object")
 	end
 
