@@ -13,10 +13,12 @@ function luapack.DebugMsg(...)
 end
 
 function luapack.CanonicalizePath(path)
-	path = path:lower():gsub("\\", "/"):gsub("/+", "/")
+	path = string.lower(path)
+	path = string.gsub(path, "\\", "/")
+	path = string.gsub(path, "/+", "/")
 
 	local t = {}
-	for str in path:gmatch("([^/]+)") do
+	for str in string.gmatch(path, "([^/]+)") do
 		if str == ".." then
 			table.remove(t)
 		elseif str ~= "." and str ~= "" then
@@ -25,5 +27,5 @@ function luapack.CanonicalizePath(path)
 	end
 
 	path = table.concat(t, "/")
-	return path:match("lua/(.+)$") or (path:match("^gamemodes/(.+)$") or path)
+	return string.match(path, "lua/(.+)$") or (string.match(path, "^gamemodes/(.+)$") or path)
 end

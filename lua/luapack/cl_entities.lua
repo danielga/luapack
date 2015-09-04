@@ -3,7 +3,7 @@ luapack.weaponsOnLoaded = luapack.weaponsOnLoaded or weapons.OnLoaded
 luapack.scripted_entsOnLoaded = luapack.scripted_entsOnLoaded or scripted_ents.OnLoaded
 
 local function RemoveExtension(filename)
-	return filename:match("([^%.]+).lua")
+	return string.match(filename, "([^%.]+).lua")
 end
 
 function luapack.LoadAutorun()
@@ -12,7 +12,7 @@ function luapack.LoadAutorun()
 		include("autorun/" .. files[i])
 	end
 
-	local files = file.Find("autorun/client/*.lua", "LUA")
+	files = file.Find("autorun/client/*.lua", "LUA")
 	for i = 1, #files do
 		include("autorun/client/" .. files[i])
 	end
@@ -51,13 +51,13 @@ function luapack.LoadWeapon(obj)
 	if obj:IsDirectory() then
 		SWEP.Folder = obj:GetFullPath()
 
-		local file = obj:GetSingle("cl_init.lua")
-		if not file or file:IsDirectory() then
-			file = obj:GetSingle("shared.lua")
+		local initobj = obj:GetSingle("cl_init.lua")
+		if initobj == nil or initobj:IsDirectory() then
+			initobj = obj:GetSingle("shared.lua")
 		end
 
-		if file and file:IsFile() then
-			CompileString(file:GetContents(), file:GetFullPath())()
+		if initobj ~= nil and initobj:IsFile() then
+			CompileString(initobj:GetContents(), initobj:GetFullPath())()
 		end
 	else
 		SWEP.Folder = obj:GetParent():GetFullPath()
@@ -89,13 +89,13 @@ function luapack.LoadEntity(obj)
 	if obj:IsDirectory() then
 		ENT.Folder = obj:GetFullPath()
 
-		local file = obj:GetSingle("cl_init.lua")
-		if not file or file:IsDirectory() then
-			file = obj:GetSingle("shared.lua")
+		local initobj = obj:GetSingle("cl_init.lua")
+		if initobj == nil or initobj:IsDirectory() then
+			initobj = obj:GetSingle("shared.lua")
 		end
 
-		if file and file:IsFile() then
-			CompileString(file:GetContents(), file:GetFullPath())()
+		if initobj ~= nil and initobj:IsFile() then
+			CompileString(initobj:GetContents(), initobj:GetFullPath())()
 		end
 	else
 		ENT.Folder = obj:GetParent():GetFullPath()
@@ -127,9 +127,9 @@ function luapack.LoadEffect(obj)
 	if obj:IsDirectory() then
 		EFFECT.Folder = obj:GetFullPath()
 
-		local file = obj:GetSingle("init.lua")
-		if file and file:IsFile() then
-			CompileString(file:GetContents(), file:GetFullPath())()
+		local initobj = obj:GetSingle("init.lua")
+		if initobj ~= nil and initobj:IsFile() then
+			CompileString(initobj:GetContents(), initobj:GetFullPath())()
 		end
 	else
 		EFFECT.Folder = obj:GetParent():GetFullPath()

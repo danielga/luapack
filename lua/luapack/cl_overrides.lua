@@ -10,7 +10,7 @@ function require(module)
 
 	local modulepath = "includes/modules/" .. module .. ".lua"
 	local obj = luapack.RootDirectory:GetSingle(modulepath)
-	if obj and obj:IsFile() then
+	if obj ~= nil and obj:IsFile() then
 		if package.loaded[module] then
 			luapack.DebugMsg("Module already loaded '" .. module .. "'")
 			return
@@ -45,7 +45,7 @@ function require(module)
 	luapack.DebugMsg("Couldn't require Lua module from luapack, proceeding with normal require", module)
 
 	local ret = luapack.require(module)
-	
+
 	luapack.AddTime(SysTime() - time)
 
 	return ret
@@ -55,7 +55,7 @@ local function GetFileFromPathStack(filepath)
 	local i = 3
 	local dbg = debug.getinfo(i, "S")
 	while dbg do
-		local path = dbg.source:match("^@?(.*)[/\\][^/\\]-$") or dbg.source:match("^@?(.*)$")
+		local path = string.match(dbg.source, "^@?(.*)[/\\][^/\\]-$") or string.match(dbg.source, "^@?(.*)$")
 		if #path == 0 then
 			path = filepath
 		else
@@ -63,7 +63,7 @@ local function GetFileFromPathStack(filepath)
 		end
 
 		local obj = luapack.RootDirectory:GetSingle(luapack.CanonicalizePath(path))
-		if obj and obj:IsFile() then
+		if obj ~= nil and obj:IsFile() then
 			return obj
 		end
 
@@ -72,7 +72,7 @@ local function GetFileFromPathStack(filepath)
 	end
 
 	local obj = luapack.RootDirectory:GetSingle(luapack.CanonicalizePath(filepath))
-	if obj and obj:IsFile() then
+	if obj ~= nil and obj:IsFile() then
 		return obj
 	end
 end
@@ -80,9 +80,9 @@ end
 function include(filepath)
 	local time = SysTime()
 
-	local file = GetFileFromPathStack(filepath)
-	if file then
-		CompileString(file:GetContents(), file:GetFullPath())()
+	local obj = GetFileFromPathStack(filepath)
+	if obj ~= nil then
+		CompileString(obj:GetContents(), obj:GetFullPath())()
 
 		luapack.AddTime(SysTime() - time)
 
@@ -99,9 +99,9 @@ end
 function CompileFile(filepath)
 	local time = SysTime()
 
-	local file = GetFileFromPathStack(filepath)
-	if file then
-		local ret = CompileString(file:GetContents(), file:GetFullPath())
+	local obj = GetFileFromPathStack(filepath)
+	if obj ~= nil then
+		local ret = CompileString(obj:GetContents(), obj:GetFullPath())
 
 		luapack.AddTime(SysTime() - time)
 

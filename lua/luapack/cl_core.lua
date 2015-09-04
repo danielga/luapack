@@ -1,14 +1,18 @@
 local currenthash = nil
 for i = 1, 2047 do
-    local str = util.NetworkIDToString(i)
-    if str and str:sub(1, 12) == "luapackhash_" then
-        currenthash = str:sub(13)
-        break
-    end
+	local str = util.NetworkIDToString(i)
+	if str == nil then
+		break
+	end
+
+	if string.sub(str, 1, 12) == "luapackhash_" then
+		currenthash = string.sub(str, 13)
+		break
+	end
 end
 
-if not currenthash then
-    error("unable to retrieve current file hash, critical luapack error")
+if currenthash == nil then
+	error("unable to retrieve current file hash, critical luapack error")
 end
 
 include("sh_core.lua")
@@ -26,7 +30,7 @@ local function ReadULong(f)
 		return
 	end
 
-	local b1, b2, b3, b4 = f:Read(4):byte(1, 4)
+	local b1, b2, b3, b4 = string.byte(f:Read(4), 1, 4)
 	local res = blshift(band(b1, 0x7F), 24) + blshift(b2, 16) + blshift(b3, 8) + b4
 	if band(b1, 0x80) ~= 0 then
 		res = res + 0x80000000
@@ -40,10 +44,10 @@ local function ReadString(f)
 	local tell = f:Tell()
 	local text = f:Read(128)
 	local offset = nil
-	while text do
-		offset = text:find("\0")
-		if offset then
-			table.insert(data, text:sub(1, offset - 1))
+	while text ~= nil do
+		offset = string.find(text, "\0")
+		if offset ~= nil then
+			table.insert(data, string.sub(text, 1, offset - 1))
 			break
 		end
 
@@ -67,7 +71,7 @@ function luapack.BuildFileList(filepath)
 		error("failed to open pack file '" .. filepath .. "' for reading")
 	end
 
-	local dir = setmetatable({__file = f, __list = {}}, luapack.DIRECTORY)
+	local dir = setmetatable({__file = f, __list = {}}, luapack.directory)
 
 	local fsize = f:Size()
 	local offset = 0
@@ -79,7 +83,7 @@ function luapack.BuildFileList(filepath)
 		dir:AddFile(path, f:Tell(), size, crc)
 
 		offset = offset + 4 + 4 + #path + 1 + size
-		
+
 		f:Seek(offset)
 	end
 

@@ -44,7 +44,7 @@ luapack.AddCSLuaFile("includes/_init.lua")
 function luapack.IsBlacklistedFile(filepath)
 	return	filepath == "derma/init.lua" or
 			filepath == "skins/default.lua" or
-			filepath:match("^([^/]*)/gamemode/cl_init.lua")
+			string.match(filepath, "^([^/]*)/gamemode/cl_init.lua")
 end
 
 function luapack.AddFile(filepath)
@@ -91,18 +91,16 @@ local function ReadFile(filepath)
 end
 
 local send = ReadFile("_send.txt")
-for line in send:gmatch("([^\r\n]+)\r?\n") do
-	if line:sub(1, 1) ~= "#" then
+for line in string.gmatch(send, "([^\r\n]+)\r?\n") do
+	if string.sub(line, 1, 1) ~= "#" then
 		luapack.AddFile(line)
 	end
 end
 
 local function StringToHex(str)
-	local byte = string.byte
-	local strfmt = "%02X"
 	local parts = {}
 	for i = 1, #str do
-		table.insert(parts, strfmt:format(byte(str:sub(i, i))))
+		table.insert(parts, string.format("%02X", string.byte(string.sub(str, i, i))))
 	end
 
 	return table.concat(parts)
@@ -120,12 +118,12 @@ local function GetPriority(path1, path2)
 		end
 	end
 
-	local gm1, rpath1, gm1p = path1:match("^([^/]+)/entities/(.+)$")
+	local gm1, rpath1, gm1p = string.match(path1, "^([^/]+)/entities/(.+)$")
 	if gm1 == nil then
 		return 0
 	end
 
-	local gm2, rpath2, gm2p = path2:match("^([^/]+)/entities/(.+)$")
+	local gm2, rpath2, gm2p = string.match(path2, "^([^/]+)/entities/(.+)$")
 	if gm2 == nil then
 		return 0
 	end
@@ -190,13 +188,13 @@ local function CleanFileList(list)
 end
 
 local function CleanPath(path)
-	--[[local gm, rpath = path:match("^([^/]+)/gamemode/(.+)$")
-	if gm and rpath then
+	--[[local gm, rpath = string.match(path, "^([^/]+)/gamemode/(.+)$")
+	if gm ~= nil and rpath ~= nil then
 		return rpath
 	end]]
 
-	local rpath = path:match("^[^/]+/entities/(.+)$")
-	if rpath then
+	local rpath = string.match(path, "^[^/]+/entities/(.+)$")
+	if rpath ~= nil then
 		return rpath
 	end
 
@@ -217,7 +215,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 	hook.Remove("InitPostEntity", "luapack resource creation")
 
 	luapack.LogMsg("Building pack...")
-	
+
 	local time = SysTime()
 
 	local luapacktemp = "luapack/temp.dat"
@@ -273,7 +271,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	resource.AddFile("data/" .. currentpath)
 
-    util.AddNetworkString("luapackhash_" .. luapack.CurrentHash)
+	util.AddNetworkString("luapackhash_" .. luapack.CurrentHash)
 
 	luapack.FinishedAdding = true
 

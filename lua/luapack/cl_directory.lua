@@ -1,6 +1,6 @@
-luapack.DIRECTORY = {}
+luapack.directory = {}
 
-local DIRECTORY = luapack.DIRECTORY
+local DIRECTORY = luapack.directory
 DIRECTORY.__index = DIRECTORY
 
 function DIRECTORY:__tostring()
@@ -30,7 +30,7 @@ end
 function DIRECTORY:GetFullPath()
 	local paths = {self:GetPath()}
 	local parent = self:GetParent()
-	while parent and not parent:IsRootDirectory() do
+	while parent ~= nil and not parent:IsRootDirectory() do
 		table.insert(paths, 1, parent:GetPath())
 		parent = parent:GetParent()
 	end
@@ -39,19 +39,19 @@ function DIRECTORY:GetFullPath()
 end
 
 local function GetPathParts(path)
-	local curdir, rest = path:match("^([^/]+)/(.+)$")
-	if curdir and rest then
+	local curdir, rest = string.match(path, "^([^/]+)/(.+)$")
+	if curdir ~= nil and rest ~= nil then
 		return false, curdir, rest
-	else
-		return true, path
 	end
+
+	return true, path
 end
 
 function DIRECTORY:AddFile(path, offset, size, crc)
 	local single, cur, rest = GetPathParts(path)
 	if single then
 		local obj = self:GetSingle(cur)
-		if not obj then
+		if obj == nil then
 			local file = setmetatable({
 				__path = cur,
 				__offset = offset,
@@ -60,27 +60,27 @@ function DIRECTORY:AddFile(path, offset, size, crc)
 				__crc_checked = 0, -- CRC_NOT_CHECKED
 				__parent = self,
 				__file = self.__file
-			}, luapack.FILE)
+			}, luapack.file)
 			table.insert(self:GetList(), file)
 			return file
 		end
 
 		return obj:IsFile() and obj or nil
-	else
-		local obj = self:GetSingle(cur)
-		if not obj then
-			obj = self:AddDirectory(cur)
-		end
-
-		return obj:IsDirectory() and obj:AddFile(rest, offset, size, crc) or nil
 	end
+
+	local obj = self:GetSingle(cur)
+	if obj == nil then
+		obj = self:AddDirectory(cur)
+	end
+
+	return obj:IsDirectory() and obj:AddFile(rest, offset, size, crc) or nil
 end
 
 function DIRECTORY:AddDirectory(path)
 	local single, cur, rest = GetPathParts(path)
 	if single then
 		local obj = self:GetSingle(cur)
-		if not obj then
+		if obj == nil then
 			local dir = setmetatable({
 				__path = cur,
 				__parent = self,
@@ -92,26 +92,26 @@ function DIRECTORY:AddDirectory(path)
 		end
 
 		return obj:IsDirectory() and obj or nil
-	else
-		local obj = self:GetSingle(cur)
-		if not obj then
-			obj = self:AddDirectory(cur)
-		end
-
-		return obj:IsDirectory() and obj:AddDirectory(rest) or nil
 	end
+
+	local obj = self:GetSingle(cur)
+	if obj == nil then
+		obj = self:AddDirectory(cur)
+	end
+
+	return obj:IsDirectory() and obj:AddDirectory(rest) or nil
 end
 
 local function GlobToPattern(glob)
 	local pattern = {"^"}
 
 	for i = 1, #glob do
-		local ch = glob:sub(i, i)
+		local ch = string.sub(glob, i, i)
 
 		if ch == "*" then
 			ch = ".*"
 		else
-			ch = ch:find("^%w$") and ch or "%" .. ch
+			ch = string.find(ch, "^%w$") and ch or "%" .. ch
 		end
 
 		table.insert(pattern, ch)
@@ -132,7 +132,7 @@ function DIRECTORY:Get(path, pattern, files, dirs)
 	end
 
 	for elem in self:GetIterator() do
-		if (pattern and elem:GetPath():find(cur)) or elem:GetPath() == cur then
+		if (pattern and string.find(elem:GetPath(), cur)) or elem:GetPath() == cur then
 			if not single then
 				if elem:IsDirectory() then
 					elem:Get(rest, pattern, files, dirs)
@@ -152,7 +152,7 @@ function DIRECTORY:GetSingle(path, pattern)
 	local single, cur, rest = GetPathParts(path)
 
 	for elem in self:GetIterator() do
-		if (pattern and elem:GetPath():find(cur)) or elem:GetPath() == cur then
+		if (pattern and string.find(elem:GetPath(), cur)) or elem:GetPath() == cur then
 			if not single then
 				if elem:IsDirectory() then
 					return elem:GetSingle(rest, pattern)
@@ -175,17 +175,19 @@ function DIRECTORY:GetIterator()
 	local n = #list
 	return function()
 		i = i + 1
-		return i <= n and list[i] or nil
+		if i <= n then
+			return list[i]
+		end
 	end
 end
 
 function DIRECTORY:GetContents()
-	error("what the hell do you think you're doing man")
+	error("not implemented")
 end
 
 function DIRECTORY:Destroy()
 	if not self:IsRootDirectory() then
-		error("what the hell do you think you're doing man")
+		error("not implemented on directories that aren't the root")
 	end
 
 	self.__file:Close()

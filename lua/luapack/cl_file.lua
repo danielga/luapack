@@ -1,6 +1,6 @@
-luapack.FILE = {}
+luapack.file = {}
 
-local FILE = luapack.FILE
+local FILE = luapack.file
 FILE.__index = FILE
 
 function FILE:__tostring()
@@ -30,7 +30,7 @@ end
 function FILE:GetFullPath()
 	local paths = {self:GetPath()}
 	local parent = self:GetParent()
-	while parent and not parent:IsRootDirectory() do
+	while parent ~= nil and not parent:IsRootDirectory() do
 		table.insert(paths, 1, parent:GetPath())
 		parent = parent:GetParent()
 	end
@@ -45,7 +45,7 @@ function FILE:GetContents()
 	local f = self.__file
 	f:Seek(self.__offset)
 	local data = f:Read(self.__size)
-	if data then
+	if data ~= nil then
 		data = util.Decompress(data)
 	end
 
@@ -63,7 +63,7 @@ function FILE:GetContents()
 end
 
 function FILE:AddFile(name)
-	error("what the hell do you think you're doing man")
+	error("not implemented")
 end
 
 FILE.AddDirectory = FILE.AddFile
