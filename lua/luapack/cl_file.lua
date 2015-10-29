@@ -1,7 +1,9 @@
-luapack.file = {}
+luapack.file = {
+	__metatable = false,
+	__index = {}
+}
 
-local FILE = luapack.file
-FILE.__index = FILE
+local FILE = luapack.file.__index
 
 function FILE:__tostring()
 	return self:GetFullPath()
@@ -20,11 +22,11 @@ function FILE:IsRootDirectory()
 end
 
 function FILE:GetPath()
-	return self.__path
+	return self.path
 end
 
 function FILE:GetParent()
-	return self.__parent
+	return self.parent
 end
 
 function FILE:GetFullPath()
@@ -42,20 +44,20 @@ local CRC_FAIL = -1
 local CRC_NOT_CHECKED = 0
 local CRC_SUCCESS = 1
 function FILE:GetContents()
-	local f = self.__file
-	f:Seek(self.__offset)
-	local data = f:Read(self.__size)
+	local f = self.file
+	f:Seek(self.offset)
+	local data = f:Read(self.size)
 	if data ~= nil then
 		data = util.Decompress(data)
 	end
 
 	data = data or ""
 
-	if self.__crc_checked == CRC_NOT_CHECKED then
-		self.__crc_checked = tonumber(util.CRC(data)) ~= self.__crc and CRC_FAIL or CRC_SUCCESS
+	if self.crc_checked == CRC_NOT_CHECKED then
+		self.crc_checked = tonumber(util.CRC(data)) ~= self.crc and CRC_FAIL or CRC_SUCCESS
 	end
 
-	if self.__crc_checked == CRC_FAIL then
+	if self.crc_checked == CRC_FAIL then
 		error("CRC not matching for file '" .. self:GetFullPath() .. "'")
 	end
 

@@ -1,7 +1,9 @@
-luapack.directory = {}
+luapack.directory = {
+	__metatable = false,
+	__index = {}
+}
 
-local DIRECTORY = luapack.directory
-DIRECTORY.__index = DIRECTORY
+local DIRECTORY = luapack.directory.__index
 
 function DIRECTORY:__tostring()
 	return self:GetFullPath()
@@ -20,11 +22,11 @@ function DIRECTORY:IsRootDirectory()
 end
 
 function DIRECTORY:GetPath()
-	return self.__path
+	return self.path
 end
 
 function DIRECTORY:GetParent()
-	return self.__parent
+	return self.parent
 end
 
 function DIRECTORY:GetFullPath()
@@ -53,13 +55,13 @@ function DIRECTORY:AddFile(path, offset, size, crc)
 		local obj = self:GetSingle(cur)
 		if obj == nil then
 			local file = setmetatable({
-				__path = cur,
-				__offset = offset,
-				__size = size,
-				__crc = crc,
-				__crc_checked = 0, -- CRC_NOT_CHECKED
-				__parent = self,
-				__file = self.__file
+				path = cur,
+				offset = offset,
+				size = size,
+				crc = crc,
+				crc_checked = 0, -- CRC_NOT_CHECKED
+				parent = self,
+				file = self.file
 			}, luapack.file)
 			table.insert(self:GetList(), file)
 			return file
@@ -82,10 +84,10 @@ function DIRECTORY:AddDirectory(path)
 		local obj = self:GetSingle(cur)
 		if obj == nil then
 			local dir = setmetatable({
-				__path = cur,
-				__parent = self,
-				__file = self.__file,
-				__list = {}
+				path = cur,
+				parent = self,
+				file = self.file,
+				list = {}
 			}, luapack.DIRECTORY)
 			table.insert(self:GetList(), dir)
 			return dir
@@ -166,7 +168,7 @@ end
 
 -- not recommended
 function DIRECTORY:GetList()
-	return self.__list
+	return self.list
 end
 
 function DIRECTORY:GetIterator()
@@ -190,7 +192,7 @@ function DIRECTORY:Destroy()
 		error("not implemented on directories that aren't the root")
 	end
 
-	self.__file:Close()
-	self.__file = nil
-	self.__list = {}
+	self.file:Close()
+	self.file = nil
+	self.list = {}
 end
