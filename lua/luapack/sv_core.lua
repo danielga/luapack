@@ -25,11 +25,11 @@ require("hook")
 require("luapack_internal")
 require("crypt")
 
-if file.Exists("lua/includes/init.lua", "MOD") and not luapack.Rename("includes/init.lua", "includes/_init.lua", "LUA") then
+if file.Exists("lua/includes/init.lua", "MOD") and not luapack.Rename("includes/init.lua", "includes/_init.lua", "LSV") then
 	luapack.DebugMsg("Failed to rename init.lua to _init.lua (maybe 'lua/includes/_init.lua' already exists?)")
 end
 
-if file.Exists("lua/send.txt", "MOD") and not luapack.Rename("send.txt", "_send.txt", "LUA") then
+if file.Exists("lua/send.txt", "MOD") and not luapack.Rename("send.txt", "_send.txt", "LSV") then
 	luapack.DebugMsg("Failed to rename send.txt to _send.txt (maybe 'lua/_send.txt' already exists?)")
 end
 
