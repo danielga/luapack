@@ -88,7 +88,7 @@ function DIRECTORY:AddDirectory(path)
 				parent = self,
 				file = self.file,
 				list = {}
-			}, luapack.DIRECTORY)
+			}, luapack.directory)
 			table.insert(self:GetList(), dir)
 			return dir
 		end
