@@ -71,7 +71,7 @@ function luapack.BuildFileList(filepath)
 		error("failed to open pack file '" .. filepath .. "' for reading")
 	end
 
-	local dir = setmetatable({__file = f, __list = {}}, luapack.directory)
+	local dir = setmetatable({file = f, list = {}}, luapack.directory)
 
 	local fsize = f:Size()
 	local offset = 0
