@@ -154,7 +154,7 @@ function luapack.LoadEffects()
 end
 
 gamemode.Register = function(gm, name, base)
-	luapack.LogMsg("Registering gamemode '" .. name .. "' with base '" .. base .. "'.")
+	luapack.LogMsg("Registering gamemode '%s' with base '%s'.\n", name, base)
 
 	local ret = luapack.gamemodeRegister(gm, name, base)
 

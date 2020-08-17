@@ -196,3 +196,26 @@ function DIRECTORY:Destroy()
 	self.file = nil
 	self.list = {}
 end
+
+function DIRECTORY:Dump(fd, prefix)
+	fd = fd or file.Open("luapack_tree.txt", "w", "DATA")
+
+	prefix = prefix or ""
+	fd:Write(prefix)
+	fd:Write(self:GetPath() or "root")
+	fd:Write("\n")
+	prefix = prefix .. "\t"
+
+	local list = self:GetList()
+	for i = 1, #list do
+		local obj = list[i]
+		if obj:IsFile() then
+			fd:Write(prefix)
+			fd:Write("FILE ")
+			fd:Write(obj:GetPath())
+			fd:Write("\n")
+		elseif obj:IsDirectory() then
+			obj:Dump(fd, prefix)
+		end
+	end
+end

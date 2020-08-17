@@ -1,15 +1,35 @@
-luapack = luapack or {}
+luapack = luapack or {
+	include = include,
+	CompileFile = CompileFile,
+	require = require,
+	fileFind = file.Find,
+	fileExists = file.Exists,
+	fileIsDir = file.IsDir
+}
 
-local green = {r = 0, g = 255, b = 0, a = 255}
-function luapack.LogMsg(...)
-	MsgC(green, "[LuaPack] ")
-	print(...)
+if luapack.LogFile ~= nil then
+	luapack.LogFile:Close()
+	luapack.LogFile = nil
 end
 
-local yellow = {r = 255, g = 255, b = 0, a = 255}
+luapack.LogFile = file.Open("luapack.txt", "w", "DATA")
+
+function luapack.LogMsg(...)
+	local content = string.format(...)
+
+	Msg(content)
+
+	luapack.LogFile:Write(content)
+	luapack.LogFile:Flush()
+end
+
 function luapack.DebugMsg(...)
-	MsgC(yellow, "[LuaPack] ")
-	print(...)
+	local content = string.format(...)
+
+	Msg(content)
+
+	luapack.LogFile:Write(content)
+	luapack.LogFile:Flush()
 end
 
 function luapack.CanonicalizePath(path)
@@ -27,5 +47,26 @@ function luapack.CanonicalizePath(path)
 	end
 
 	path = table.concat(t, "/")
-	return string.match(path, "lua/(.+)$") or (string.match(path, "^gamemodes/(.+)$") or path)
+
+	local match = string.match(path, "^lua/(.+)$")
+	if match ~= nil then
+		return match
+	end
+
+	match = string.match(path, "^addons/[^/]+/lua/(.+)$")
+	if match ~= nil then
+		return match
+	end
+
+	match = string.match(path, "^gamemodes/[^/]+/entities/(.+)$")
+	if match ~= nil then
+		return match
+	end
+
+	match = string.match(path, "^gamemodes/([^/]+/gamemode/.+)$")
+	if match ~= nil then
+		return match
+	end
+
+	return path
 end

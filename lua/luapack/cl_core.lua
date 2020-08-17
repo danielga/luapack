@@ -17,12 +17,12 @@ end
 
 include("sh_core.lua")
 
-luapack.LogMsg("Found the current pack file hash ('" .. currenthash .. "')!")
+luapack.LogMsg("Found the current pack file hash ('%s')!\n", currenthash)
 
 luapack.CurrentHash = currenthash
 
-include("cl_file.lua")
-include("cl_directory.lua")
+luapack.include("cl_file.lua")
+luapack.include("cl_directory.lua")
 
 local band, blshift = bit.band, bit.lshift
 local function ReadULong(f)
@@ -62,7 +62,7 @@ local function ReadString(f)
 end
 
 function luapack.BuildFileList(filepath)
-	luapack.LogMsg("Starting Lua file list build of '" .. filepath .. "'!")
+	luapack.LogMsg("Starting Lua file list build of '%s'!\n", filepath)
 
 	local time = SysTime()
 
@@ -87,7 +87,9 @@ function luapack.BuildFileList(filepath)
 		f:Seek(offset)
 	end
 
-	luapack.LogMsg("Lua file list building of '" .. filepath .. "' took " .. SysTime() - time .. " seconds!")
+	luapack.LogMsg("Lua file list building of '%s' took %f seconds!\n", filepath, SysTime() - time)
+
+	dir:Dump()
 
 	return dir
 end
@@ -104,6 +106,6 @@ function luapack.GetTimeSpentLoading()
 	return totaltime
 end
 
-include("cl_overrides.lua")
-include("includes/_init.lua")
-include("cl_entities.lua")
+luapack.include("cl_overrides.lua")
+luapack.include("includes/_init.lua")
+luapack.include("cl_entities.lua")

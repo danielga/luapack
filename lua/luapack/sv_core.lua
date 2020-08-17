@@ -20,10 +20,10 @@ function IsValid(object)
 	return object and object.IsValid and object:IsValid()
 end
 
-require("hook")
+luapack.require("hook")
 
-require("luapack_internal")
-require("crypt")
+luapack.require("luapack_internal")
+luapack.require("crypt")
 
 function luapack.AddCSLuaFile(path)
 	luapack.Bypass = true
@@ -36,23 +36,23 @@ luapack.AddCSLuaFile("includes/_init.lua")
 function luapack.IsBlacklistedFile(filepath)
 	return	filepath == "derma/init.lua" or
 			filepath == "skins/default.lua" or
-			string.match(filepath, "^([^/]*)/gamemode/cl_init.lua")
+			string.match(filepath, "^([^/]+)/gamemode/cl_init.lua$")
 end
 
 function luapack.AddFile(filepath)
 	if luapack.FinishedAdding then
-		luapack.DebugMsg("luapack.AddFile called after InitPostEntity was called '" .. filepath .. "'")
+		luapack.DebugMsg("luapack.AddFile called after InitPostEntity was called '%s'\n", filepath)
 		return false
 	end
 
 	filepath = luapack.CanonicalizePath(filepath)
 	if not file.Exists(filepath, "LUA") then
-		luapack.DebugMsg("File doesn't exist (unable to add it to file list) '" .. filepath .. "'.")
+		luapack.DebugMsg("File doesn't exist (unable to add it to file list) '%s'.\n", filepath)
 		return false
 	end
 
 	if luapack.IsBlacklistedFile(filepath) then
-		luapack.DebugMsg("Adding file through normal AddCSLuaFile '" .. filepath .. "'.")
+		luapack.DebugMsg("Adding file through normal AddCSLuaFile '%s'.\n", filepath)
 		return false
 	end
 
@@ -206,7 +206,7 @@ end
 hook.Add("InitPostEntity", "luapack resource creation", function()
 	hook.Remove("InitPostEntity", "luapack resource creation")
 
-	luapack.LogMsg("Building pack...")
+	luapack.LogMsg("Building pack...\n")
 
 	local time = SysTime()
 
@@ -254,10 +254,10 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 	local currentpath = "luapack/" .. luapack.CurrentHash .. ".dat"
 	if not file.Exists(currentpath, "DATA") then
 		if not luapack.Rename(luapacktemp, currentpath) then
-			luapack.DebugMsg("Pack file renaming not successful")
+			luapack.DebugMsg("Pack file renaming not successful\n")
 		end
 	else
-		luapack.DebugMsg("Deleting obsolete temporary file")
+		luapack.DebugMsg("Deleting obsolete temporary file\n")
 		file.Delete(luapacktemp)
 	end
 
@@ -267,7 +267,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	luapack.FinishedAdding = true
 
-	luapack.LogMsg("Pack building took " .. SysTime() - time .. " seconds!")
+	luapack.LogMsg("Pack building took %f seconds!\n", SysTime() - time)
 end)
 
-include("includes/_init.lua")
+luapack.include("includes/_init.lua")
