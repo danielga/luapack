@@ -58,9 +58,16 @@ function luapack.CanonicalizePath(path)
 		return match
 	end
 
-	match = string.match(path, "^gamemodes/[^/]+/entities/(.+)$")
-	if match ~= nil then
-		return match
+	if SERVER then
+		match = string.match(path, "^gamemodes/([^/]+/entities/.+)$")
+		if match ~= nil then
+			return match
+		end
+	else
+		match = string.match(path, "^gamemodes/[^/]+/entities/(.+)$")
+		if match ~= nil then
+			return match
+		end
 	end
 
 	match = string.match(path, "^gamemodes/([^/]+/gamemode/.+)$")
