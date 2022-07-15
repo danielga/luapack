@@ -81,11 +81,12 @@ function include(filepath)
 
 	local obj = GetFileFromPathStack(filepath)
 	if obj ~= nil then
-		CompileString(obj:GetContents(), obj:GetFullPath())()
+		local a, b, c, d, e, f, g, h, i, j = CompileString(obj:GetContents(), obj:GetFullPath())()
 
 		luapack.AddTime(SysTime() - time)
 
-		return
+		-- 10 return values... my dude, if you return more than 10 values...
+		return a, b, c, d, e, f, g, h, i, j
 	end
 
 	luapack.DebugMsg("Couldn't include Lua file (%s) from luapack, proceeding with normal include\n", filepath)
