@@ -25,14 +25,6 @@ require("hook")
 require("luapack_internal")
 require("crypt")
 
-if file.Exists("lua/includes/init.lua", "MOD") and not luapack.Rename("includes/init.lua", "includes/_init.lua", "LSV") then
-	luapack.DebugMsg("Failed to rename init.lua to _init.lua (maybe 'lua/includes/_init.lua' already exists?)")
-end
-
-if file.Exists("lua/send.txt", "MOD") and not luapack.Rename("send.txt", "_send.txt", "LSV") then
-	luapack.DebugMsg("Failed to rename send.txt to _send.txt (maybe 'lua/_send.txt' already exists?)")
-end
-
 function luapack.AddCSLuaFile(path)
 	luapack.Bypass = true
 	AddCSLuaFile(path)
@@ -261,7 +253,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	local currentpath = "luapack/" .. luapack.CurrentHash .. ".dat"
 	if not file.Exists(currentpath, "DATA") then
-		if not luapack.Rename(luapacktemp, currentpath, "DATA") then
+		if not luapack.Rename(luapacktemp, currentpath) then
 			luapack.DebugMsg("Pack file renaming not successful")
 		end
 	else
