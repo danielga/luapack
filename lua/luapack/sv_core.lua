@@ -39,36 +39,43 @@ function luapack.IsBlacklistedFile(filepath)
 			string.match(filepath, "^([^/]+)/gamemode/cl_init.lua$")
 end
 
-function luapack.AddFile(filepath)
+function luapack.AddFile(filepath, add_blacklisted_files)
 	if luapack.FinishedAdding then
 		luapack.DebugMsg("luapack.AddFile called after InitPostEntity was called '%s'\n", filepath)
 		return false
 	end
 
-	filepath = luapack.CanonicalizePath(filepath)
-	if not file.Exists(filepath, "LUA") then
-		luapack.DebugMsg("File doesn't exist (unable to add it to file list) '%s'.\n", filepath)
+	local canon_filepath = luapack.CanonicalizePath(filepath)
+	if not file.Exists(canon_filepath, "LUA") then
+		luapack.DebugMsg("File doesn't exist (unable to add it to file list) '%s'.\n", canon_filepath)
 		return false
 	end
 
-	if luapack.IsBlacklistedFile(filepath) then
-		luapack.DebugMsg("Adding file through normal AddCSLuaFile '%s'.\n", filepath)
+	if luapack.IsBlacklistedFile(canon_filepath) then
+		luapack.DebugMsg("Adding file through normal AddCSLuaFile '%s'.\n", canon_filepath)
+
+		if add_blacklisted_files then
+			luapack.AddCSLuaFile(filepath)
+		end
+
 		return false
 	end
 
 	for i = 1, #luapack.FileList do
-		if luapack.FileList[i] == filepath then
+		if luapack.FileList[i] == canon_filepath then
 			return true
 		end
 	end
 
-	table.insert(luapack.FileList, filepath)
+	table.insert(luapack.FileList, canon_filepath)
 
 	return true
 end
 
 hook.Add("AddOrUpdateCSLuaFile", "luapack addcsluafile detour", function(path, reload)
-	return (not reload and not luapack.Bypass and luapack.AddFile(path)) and true or nil
+	if not reload and not luapack.Bypass and luapack.AddFile(path) then
+		return false
+	end
 end)
 
 local function ReadFile(filepath)
@@ -85,7 +92,7 @@ end
 local send = ReadFile("_send.txt")
 for line in string.gmatch(send, "([^\r\n]+)\r?\n") do
 	if string.sub(line, 1, 1) ~= "#" then
-		luapack.AddFile(line)
+		luapack.AddFile(line, true)
 	end
 end
 
