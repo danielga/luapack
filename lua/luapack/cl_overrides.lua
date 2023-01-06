@@ -82,11 +82,11 @@ function include(filepath)
 
 	local obj = GetFileFromPathStack(filepath)
 	if obj ~= nil then
-		CompileString(obj:GetContents(), obj:GetFullPath())()
+		local ret = CompileString(obj:GetContents(), obj:GetFullPath())()
 
 		luapack.AddTime(SysTime() - time)
 
-		return
+		return ret
 	end
 
 	luapack.DebugMsg("Couldn't include Lua file from luapack, proceeding with normal include", filepath)
