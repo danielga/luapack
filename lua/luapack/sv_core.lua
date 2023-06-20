@@ -247,7 +247,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	f:Close()
 
-	luapack.CurrentHash = StringToHex(h:Final())
+	luapack.CurrentHash = StringToHex(h)
 
 	local currentpath = "luapack/" .. luapack.CurrentHash .. ".dat"
 	if not file.Exists(currentpath, "DATA") then
