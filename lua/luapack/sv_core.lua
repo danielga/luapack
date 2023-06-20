@@ -23,7 +23,6 @@ end
 require("hook")
 
 require("luapack_internal")
-require("crypt")
 
 function luapack.AddCSLuaFile(path)
 	luapack.Bypass = true
@@ -219,10 +218,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 		error("failed to open '" .. luapacktemp .. "' for writing")
 	end
 
-	local h = crypt.SHA1()
-	if h == nil then
-		error("failed to create SHA-1 hasher object")
-	end
+	local h = ""
 
 	CleanFileList(luapack.FileList)
 
@@ -233,7 +229,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 		local crc = tonumber(util.CRC(data))
 		filepath = CleanPath(filepath)
 
-		h:Update(data)
+		h = util.SHA1(util.SHA1(data) .. h)
 
 		if datalen > 0 then
 			data = util.Compress(data)
