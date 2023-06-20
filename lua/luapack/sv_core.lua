@@ -32,6 +32,8 @@ function luapack.AddCSLuaFile(path)
 end
 
 luapack.AddCSLuaFile("includes/_init.lua")
+luapack.AddCSLuaFile("derma/init.lua")
+luapack.AddCSLuaFile("skins/default.lua")
 
 function luapack.IsBlacklistedFile(filepath)
 	return	filepath == "derma/init.lua" or
