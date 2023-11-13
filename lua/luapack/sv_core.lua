@@ -23,7 +23,6 @@ end
 luapack.require("hook")
 
 luapack.require("luapack_internal")
-luapack.require("crypt")
 
 function luapack.AddCSLuaFile(path)
 	luapack.Bypass = true
@@ -94,15 +93,6 @@ for line in string.gmatch(send, "([^\r\n]+)\r?\n") do
 	if string.sub(line, 1, 1) ~= "#" then
 		luapack.AddFile(line, true)
 	end
-end
-
-local function StringToHex(str)
-	local parts = {}
-	for i = 1, #str do
-		table.insert(parts, string.format("%02X", string.byte(string.sub(str, i, i))))
-	end
-
-	return table.concat(parts)
 end
 
 local gamemode_priority = nil
@@ -224,10 +214,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 		error("failed to open '" .. luapacktemp .. "' for writing")
 	end
 
-	local h = crypt.SHA1()
-	if h == nil then
-		error("failed to create SHA-1 hasher object")
-	end
+	local hashes = {}
 
 	CleanFileList(luapack.FileList)
 
@@ -238,7 +225,7 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 		local crc = tonumber(util.CRC(data))
 		filepath = CleanPath(filepath)
 
-		h:Update(data)
+		hashes[#hashes + 1] = util.SHA256(data)
 
 		if datalen > 0 then
 			data = util.Compress(data)
@@ -256,7 +243,8 @@ hook.Add("InitPostEntity", "luapack resource creation", function()
 
 	f:Close()
 
-	luapack.CurrentHash = StringToHex(h:Final())
+	table.sort(hashes)
+	luapack.CurrentHash = util.SHA256(table.concat(hashes))
 
 	local currentpath = "luapack/" .. luapack.CurrentHash .. ".dat"
 	if not file.Exists(currentpath, "DATA") then
